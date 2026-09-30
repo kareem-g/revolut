@@ -68,6 +68,9 @@ jobs:
           grep -n "SWIFT_RETURNS_RETAINED RuntimeScheduler(" "$H"
           sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/' "$H"
           rm -f "$H.bak"
+          # Swift 6.2 rejects `weak let`; the package still declares several.
+          grep -rl "weak let " node_modules/expo-modules-jsi/apple/Sources --include="*.swift" \
+            | xargs -I{} sh -c "sed -i.bak 's/weak let /weak var /g' {}; rm -f {}.bak"
           grep -n "swiftLanguageModes" node_modules/expo-modules-jsi/apple/Package.swift
 
       - name: Generate native iOS project (expo prebuild)
