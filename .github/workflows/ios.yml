@@ -35,10 +35,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select newest installed Xcode (Swift 6.2 needed by Expo modules)
+      # Expo SDK 57 (expo-modules-jsi 57.x) is built against Xcode 26.0/26.1;
+      # newer Xcode 26.x toolchains reject its Swift 6 sources.
+      - name: Select Xcode 26.1 (Expo SDK 57 supported toolchain)
         run: |
           ls -d /Applications/Xcode*.app | sort -V
-          XCODE=$(ls -d /Applications/Xcode*.app | sort -V | tail -1)
+          XCODE=""
+          for v in 26.1 26.1.0 26.0 26.0.0; do
+            [ -d "/Applications/Xcode_$v.app" ] && XCODE="/Applications/Xcode_$v.app" && break
+          done
+          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_2*.app | sort -V | head -1)
           echo "Selecting $XCODE"
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version && swift --version
@@ -54,9 +60,7 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       # expo-modules-jsi 57.x annotates constructors with SWIFT_RETURNS_RETAINED,
-      # which Swift 6.2 (Xcode 26) rejects, and compiles in Swift 6 language mode
-      # whose strict-concurrency errors fail the build. Fixed upstream in SDK 58;
-      # patch the annotations out and drop the package to Swift 5 mode.
+      # which the Xcode 26 C++ interop rejects. Fixed upstream in SDK 58.
       - name: Patch expo-modules-jsi for Swift 6.2
         working-directory: ${{ env.PROJECT_DIR }}
         run: |
@@ -64,13 +68,7 @@ jobs:
           grep -n "SWIFT_RETURNS_RETAINED RuntimeScheduler(" "$H"
           sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/' "$H"
           rm -f "$H.bak"
-          P=node_modules/expo-modules-jsi/apple/Package.swift
-          sed -i.bak 's/swiftLanguageModes: \[\.v6\]/swiftLanguageModes: [.v5]/' "$P"
-          rm -f "$P.bak"
-          S=node_modules/expo-modules-jsi/apple/ExpoModulesJSI.podspec
-          sed -i.bak "s/swift_version  = '6.0'/swift_version  = '5.0'/" "$S"
-          rm -f "$S.bak"
-          grep -n "swiftLanguageModes\|swift_version" "$P" "$S"
+          grep -n "swiftLanguageModes" node_modules/expo-modules-jsi/apple/Package.swift
 
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
