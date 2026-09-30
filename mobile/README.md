@@ -22,12 +22,14 @@ Settings › Mode.
 ## Build the IPA
 
 **With GitHub Actions (no Mac needed):** push this folder to GitHub —
-`.github/workflows/ios.yml` builds `powerk.ipa` on a macOS runner and uploads it as
-an artifact on every push to `main` (or from the Actions tab → *ios-ipa* → *Run
-workflow*). Unsigned by default: install it with Xcode/Sideloadly/AltStore, or add
-the repo secrets listed at the top of the workflow file (`BUILD_CERTIFICATE_BASE64`,
-`P12_PASSWORD`, `BUILD_PROVISION_PROFILE_BASE64`, `KEYCHAIN_PASSWORD`) to get a
-signed IPA.
+`.github/workflows/ios.yml` builds `powerk.ipa` on a macOS runner on every push to
+`main`/`master` that touches `mobile/**` (or from the Actions tab → *ios-ipa* →
+*Run workflow*). Every successful build republishes the IPA to the
+[`ipa-latest` release](https://github.com/kareem-g/powerk/releases/tag/ipa-latest) as a raw `.ipa` download
+(GitHub *artifacts* download as zips; the release asset does not). Unsigned by
+default: install it with Xcode/Sideloadly/AltStore, or add the repo secrets listed
+at the top of the workflow file (`BUILD_CERTIFICATE_BASE64`, `P12_PASSWORD`,
+`BUILD_PROVISION_PROFILE_BASE64`, `KEYCHAIN_PASSWORD`) to get a signed IPA.
 
 **With a Mac:** `npm ci`, then:
 
