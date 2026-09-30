@@ -16,7 +16,7 @@ name: ios-ipa
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
       - "mobile/**"
       - ".github/workflows/ios.yml"
