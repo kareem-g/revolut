@@ -81,6 +81,11 @@ jobs:
           S=node_modules/expo-modules-jsi/apple/ExpoModulesJSI.podspec
           sed -i.bak "s/swift_version  = '6.0'/swift_version  = '5.0'/" "$S"
           rm -f "$S.bak"
+          # Swift 5 mode does not infer actor isolation for stored-property
+          # defaults; give the actor-isolated helper an explicit nonisolated init.
+          JP=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptPromise.swift
+          sed -i.bak 's/  private final class LongLivedState: LongLivedObject {/  private final class LongLivedState: LongLivedObject {\n    nonisolated init() {}/' "$JP"
+          rm -f "$JP.bak"
           grep -n "swiftLanguageModes\|BareSlash\|swift_version" "$P" "$S"
 
       - name: Generate native iOS project (expo prebuild)
