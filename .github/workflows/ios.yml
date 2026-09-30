@@ -53,6 +53,16 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: npm ci --legacy-peer-deps
 
+      # expo-modules-jsi 57.x annotates constructors with SWIFT_RETURNS_RETAINED,
+      # which Swift 6.2 (Xcode 26) rejects. Fixed upstream in SDK 58; patch it out.
+      - name: Patch expo-modules-jsi for Swift 6.2
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          F=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+          grep -n "SWIFT_RETURNS_RETAINED RuntimeScheduler(" "$F"
+          sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/' "$F"
+          rm -f "$F.bak"
+
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
         run: npx expo prebuild --platform ios --no-install
