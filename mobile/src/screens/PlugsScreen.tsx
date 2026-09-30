@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useI18n } from '../i18n';
 import { useConn } from '../server';
 import { usePowerk } from '../usePowerk';
@@ -13,6 +14,17 @@ export function PlugsScreen({ onOpenSettings }: { onOpenSettings: () => void }) 
   const conn = useConn();
   const direct = conn.mode === 'direct';
   const { snapshot, error, loading, pending, refresh, command, phoneIp, hubState } = usePowerk();
+  const [lastError, setLastError] = useState<string | null>(null);
+
+  // show (and clear) a crash message persisted by the ErrorBoundary
+  useEffect(() => {
+    AsyncStorage.getItem('last_js_error').then((v) => {
+      if (v) {
+        setLastError(v.split('\n')[0]);
+        AsyncStorage.removeItem('last_js_error');
+      }
+    });
+  }, []);
   const strips = snapshot?.strips ?? [];
   const onlineCount = strips.filter((s) => s.online).length;
   const hostLabel = direct ? t('direct_host_label') : conn.host;
@@ -61,6 +73,7 @@ export function PlugsScreen({ onOpenSettings }: { onOpenSettings: () => void }) 
       {error && (
         <MessageCard text={direct ? t('direct_failed') : error} isError palette={palette} />
       )}
+      {lastError && <MessageCard text={lastError} isError palette={palette} />}
       {direct && hubState === 'running' && strips.length === 0 && (
         <MessageCard text={t('direct_waiting_first')} isError={false} palette={palette} />
       )}

@@ -3,12 +3,14 @@ import { View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { I18nProvider, useI18n } from './src/i18n';
 import { ConnProvider } from './src/server';
 import { usePalette } from './src/theme';
 import { SplashGate, ToastProvider } from './src/ui/bits';
+import { ErrorBoundary } from './src/ui/ErrorBoundary';
 import { PlugsScreen } from './src/screens/PlugsScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -85,12 +87,16 @@ function SettingsScreenWithNav() {
 
 export default function App() {
   return (
-    <ConnProvider>
-      <I18nProvider>
-        <ToastProvider>
-          <Shell />
-        </ToastProvider>
-      </I18nProvider>
-    </ConnProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <ConnProvider>
+          <I18nProvider>
+            <ToastProvider>
+              <Shell />
+            </ToastProvider>
+          </I18nProvider>
+        </ConnProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

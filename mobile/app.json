@@ -19,9 +19,6 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         }
-      },
-      "entitlements": {
-        "com.apple.developer.networking.HotspotConfiguration": true
       }
     },
     "android": {
