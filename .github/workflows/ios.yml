@@ -29,6 +29,9 @@ jobs:
       PROJECT_DIR: mobile
       SCHEME: powerk
       CONFIGURATION: Release
+      # 'true'/'false' strings — step `if:` cannot read `secrets` directly
+      HAS_CERT: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+      HAS_PROFILE: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +55,7 @@ jobs:
 
       # ---- optional signing (only when secrets are present) ----
       - name: Install signing certificate
-        if: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+        if: env.HAS_CERT == 'true'
         env:
           P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
@@ -68,7 +71,7 @@ jobs:
           security list-keychain -d user -s $KEYCHAIN_PATH
 
       - name: Install provisioning profile
-        if: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}
+        if: env.HAS_PROFILE == 'true'
         run: |
           PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
           echo -n "${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}" | base64 --decode > $PP_PATH
@@ -101,7 +104,7 @@ jobs:
           fi
 
       - name: Export signed IPA
-        if: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}
+        if: env.HAS_PROFILE == 'true'
         run: |
           cat > $RUNNER_TEMP/ExportOptions.plist <<'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
@@ -119,7 +122,7 @@ jobs:
             -allowProvisioningUpdates
 
       - name: Package unsigned IPA
-        if: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 == '' }}
+        if: env.HAS_PROFILE != 'true'
         run: |
           APP=$(find $RUNNER_TEMP/powerk.xcarchive/Products/Applications -maxdepth 1 -name '*.app')
           mkdir -p $RUNNER_TEMP/Payload
@@ -128,7 +131,7 @@ jobs:
           echo "IPA_PATH=$RUNNER_TEMP/powerk-unsigned.ipa" >> $GITHUB_ENV
 
       - name: Collect IPA path
-        if: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' }}
+        if: env.HAS_PROFILE == 'true'
         run: |
           IPA=$(find $RUNNER_TEMP/export -name '*.ipa' 2>/dev/null | head -1)
           echo "IPA_PATH=$IPA" >> $GITHUB_ENV
