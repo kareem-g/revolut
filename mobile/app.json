@@ -1,0 +1,65 @@
+{
+  "expo": {
+    "name": "powerk",
+    "slug": "powerk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "powerk",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.powerk.mobile",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "powerk talks to your LG+ power strip on your home Wi-Fi: the strip connects to this app's server (TCP 10086), and provisioning uses the strip's own setup network.",
+        "NSLocationWhenInUseUsageDescription": "Used to detect which Wi-Fi network the phone is on while provisioning the strip (its setup network TONLY_TAP_…).",
+        "UIBackgroundModes": [],
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
+      },
+      "entitlements": {
+        "com.apple.developer.networking.HotspotConfiguration": true
+      }
+    },
+    "android": {
+      "package": "com.powerk.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#A6F2C4",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "ACCESS_WIFI_STATE",
+        "CHANGE_WIFI_STATE",
+        "CHANGE_NETWORK_STATE",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "NEARBY_WIFI_DEVICES"
+      ],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-localization",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#F5FBF5",
+          "dark": {
+            "image": "./assets/splash-icon-dark.png",
+            "backgroundColor": "#0F1511"
+          }
+        }
+      ]
+    ]
+  }
+}
