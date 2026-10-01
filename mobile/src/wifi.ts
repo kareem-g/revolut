@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { hasWifiModule } from './native';
 
 // Thin wrapper over react-native-wifi-reborn so the rest of the app never
 // touches the library directly (swappable if native builds change).
@@ -9,6 +10,7 @@ interface WifiReborn {
 }
 
 function wifiModule(): WifiReborn {
+  if (!hasWifiModule()) throw new Error('web_no_wifi');
   // Autolinked native module; required lazily so jest/node never loads it.
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const mod = require('react-native-wifi-reborn');

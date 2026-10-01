@@ -9,7 +9,7 @@ import { joinNetwork, rejoinHome } from '../wifi';
 import { provisionStrip } from '../setup-conn';
 import { snapshot as apiSnapshot } from '../api';
 import { hub } from '../hub/hub';
-import { loadTcpSocket } from '../native';
+import { hasWifiModule, loadTcpSocket } from '../native';
 import { BodyText, Card, Field, MessageCard, SectionTitle, useToast } from '../ui/bits';
 import { TonalButton } from '../ui/parts';
 import { R } from '../theme';
@@ -50,6 +50,7 @@ function probeSetupPort(timeoutMs = 1500): Promise<boolean> {
 function currentSsid(): Promise<string | null> {
   return new Promise((resolve) => {
     try {
+      if (!hasWifiModule()) return resolve(null);
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const WifiManager = require('react-native-wifi-reborn').default;
       WifiManager.getCurrentWifiSSID()
