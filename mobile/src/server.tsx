@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { hasTcpSocket } from './native';
 
 // Connection settings for both modes:
 //  - 'direct': this phone runs the powerk server (TCP 10086). No PC or VPS.
@@ -44,7 +45,9 @@ export function coercePort(value: number | null | undefined): number {
 }
 
 export function ConnProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<Mode>(Platform.OS === 'web' ? 'server' : 'direct');
+  const [mode, setModeState] = useState<Mode>(
+    Platform.OS === 'web' || !hasTcpSocket() ? 'server' : 'direct',
+  );
   const [config, setConfig] = useState<ServerConfig>(DEFAULTS);
   const [provisionedIp, setProvisionedIpState] = useState('');
   const [homeWifi, setHomeWifiState] = useState<WifiCreds>(EMPTY_WIFI);
@@ -61,7 +64,7 @@ export function ConnProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem('provisioned_ip'),
           AsyncStorage.getItem('home_wifi'),
         ]);
-        if (Platform.OS === 'web') setModeState('server');
+        if (Platform.OS === 'web' || !hasTcpSocket()) setModeState('server');
         else if (m === 'server' || m === 'direct') setModeState(m);
         setConfig({
           host: host ?? '',

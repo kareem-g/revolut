@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import TcpSocket from 'react-native-tcp-socket';
 import { useI18n } from '../i18n';
 import { useConn, WifiCreds } from '../server';
 import { usePalette } from '../theme';
@@ -10,6 +9,7 @@ import { joinNetwork, rejoinHome } from '../wifi';
 import { provisionStrip } from '../setup-conn';
 import { snapshot as apiSnapshot } from '../api';
 import { hub } from '../hub/hub';
+import { loadTcpSocket } from '../native';
 import { BodyText, Card, Field, MessageCard, SectionTitle, useToast } from '../ui/bits';
 import { TonalButton } from '../ui/parts';
 import { R } from '../theme';
@@ -23,6 +23,8 @@ const DETECT_TIMEOUT_MS = 3 * 60 * 1000;
 /** Quick reachability probe of the strip's setup service. */
 function probeSetupPort(timeoutMs = 1500): Promise<boolean> {
   return new Promise((resolve) => {
+    const TcpSocket = loadTcpSocket();
+    if (!TcpSocket) return resolve(false);
     let settled = false;
     const socket = TcpSocket.createConnection({ host: SETUP_HOST, port: SETUP_PORT }, () => {
       if (settled) return;

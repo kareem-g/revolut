@@ -1,4 +1,3 @@
-import TcpSocket from 'react-native-tcp-socket';
 import {
   SETUP_HOST,
   SETUP_PORT,
@@ -8,6 +7,7 @@ import {
   expectsConnectOk,
   expectsIpOk,
 } from './provision';
+import { loadTcpSocket } from './native';
 
 export type LogSink = (key: string, ...args: string[]) => void;
 
@@ -21,6 +21,8 @@ const REACHABILITY_SECONDS = 30;
  */
 function exchange(line: string, onLog: LogSink): Promise<string> {
   return new Promise<string>((resolve, reject) => {
+    const TcpSocket = loadTcpSocket();
+    if (!TcpSocket) return reject(new SetupError('err_no_native'));
     let settled = false;
     let buffer = '';
     let replyTimer: ReturnType<typeof setTimeout> | null = null;
@@ -79,6 +81,8 @@ function exchange(line: string, onLog: LogSink): Promise<string> {
 /** Tries createConnection once; resolves when the socket is writable. */
 function canReach(): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    const TcpSocket = loadTcpSocket();
+    if (!TcpSocket) return reject(new SetupError('err_no_native'));
     let settled = false;
     const socket = TcpSocket.createConnection({ host: SETUP_HOST, port: SETUP_PORT }, () => {
       if (settled) return;

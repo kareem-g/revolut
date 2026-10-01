@@ -164,6 +164,8 @@ const en = {
   err_wifi_empty: 'Enter the Wi‑Fi name and password',
   err_not_on_strip_network:
     'Not reachable. Is the LED blinking fast? Is the phone on %1$s?',
+  err_no_native:
+    'Provisioning needs the full app — this Expo Go build has no raw TCP access. Use powerk.py provision on a PC instead.',
   err_strip_answered: 'Strip answered %1$s, expected %2$s',
   err_join: 'Could not join the strip network — %1$s',
 
@@ -337,6 +339,8 @@ const ar: Dict = {
   err_wifi_empty: 'اكتب اسم الواي فاي والباسورد',
   err_not_on_strip_network:
     'مش واصل. اللمبة بتنعّ بسرعة؟ والموبايل واقف على %1$s؟',
+  err_no_native:
+    'الإعداد محتاج التطبيق الكامل — نسخة Expo Go دي مالهاش وصول TCP مباشر. استخدم powerk.py provision من الكمبيوتر بدالها.',
   err_strip_answered: 'المشترك رد %1$s، المتوقع %2$s',
   err_join: 'معرفش أدخل على شبكة المشترك — %1$s',
 

@@ -4,6 +4,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { Snapshot, setOutlet, snapshot } from './api';
 import { hub } from './hub/hub';
 import { startHubServer, stopHubServer } from './hub/server';
+import { hasTcpSocket } from './native';
 import { useConn } from './server';
 
 export interface PowerkState {
@@ -25,7 +26,7 @@ const POLL_MS = 2000;
 /** Unified store: in-app hub in direct mode, HTTP polling in server mode. */
 export function usePowerk(): PowerkState {
   const conn = useConn();
-  const direct = conn.mode === 'direct' && Platform.OS !== 'web';
+  const direct = conn.mode === 'direct' && Platform.OS !== 'web' && hasTcpSocket();
 
   // --- direct mode: live hub snapshots ------------------------------------
   const [hubStrips, setHubStrips] = useState(hub.snapshot().strips);
@@ -69,10 +70,12 @@ export function usePowerk(): PowerkState {
       return;
     }
     const read = () =>
-      NetInfo.fetch().then((s) => {
-        const details = s.details as { ipAddress?: string | null } | null;
-        setPhoneIp(s.type === 'wifi' ? details?.ipAddress ?? null : null);
-      });
+      NetInfo.fetch()
+        .then((s) => {
+          const details = s.details as { ipAddress?: string | null } | null;
+          setPhoneIp(s.type === 'wifi' ? details?.ipAddress ?? null : null);
+        })
+        .catch(() => setPhoneIp(null));
     void read();
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') void read();

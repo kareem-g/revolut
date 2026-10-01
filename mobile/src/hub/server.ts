@@ -1,17 +1,18 @@
-import TcpSocket from 'react-native-tcp-socket';
 import { hub, HubTransport } from './hub';
+import { loadTcpSocket } from '../native';
 
 export const DEVICE_PORT = 10086; // the strip's firmware always dials this port
 
-let server: ReturnType<typeof TcpSocket.createServer> | null = null;
+let server: any = null;
 
 /** Starts listening on 0.0.0.0:10086 and the hub poll loop. */
 export function startHubServer(port = DEVICE_PORT): Promise<void> {
   if (server) return Promise.resolve();
+  const TcpSocket = loadTcpSocket();
+  if (!TcpSocket) return Promise.reject(new Error('tcp socket unavailable'));
   return new Promise((resolve, reject) => {
-    const s = TcpSocket.createServer((socket) => {
-      const peerIp =
-        (socket as unknown as { remoteAddress?: string }).remoteAddress || '?';
+    const s = TcpSocket.createServer((socket: any) => {
+      const peerIp = socket?.remoteAddress || '?';
       const conn = hub.openConnection(peerIp, {
         ip: peerIp,
         send: (cmd) => socket.write(`${cmd}\r\n`),
