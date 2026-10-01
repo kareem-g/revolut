@@ -41,12 +41,24 @@ export function usePowerk(): PowerkState {
     }
     let alive = true;
     setHubState('starting');
-    startHubServer()
-      .then(() => alive && setHubState('running'))
-      .catch(() => alive && setHubState('failed'));
+    // Defer the socket bind so it never races the launch/splash on iOS (it also
+    // triggers the Local Network permission prompt). Only bind once foregrounded.
+    const bind = () =>
+      startHubServer()
+        .then(() => alive && setHubState('running'))
+        .catch(() => alive && setHubState('failed'));
+    let timer: ReturnType<typeof setTimeout> | undefined = setTimeout(bind, 1200);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(bind, 300);
+      }
+    });
     const unsub = hub.subscribe(() => setHubStrips(hub.snapshot().strips));
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
+      sub.remove();
       unsub();
     };
   }, [direct]);
