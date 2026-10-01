@@ -47,9 +47,9 @@ export function ConnProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<ServerConfig>(DEFAULTS);
   const [provisionedIp, setProvisionedIpState] = useState('');
   const [homeWifi, setHomeWifiState] = useState<WifiCreds>(EMPTY_WIFI);
-  const [ready, setReady] = useState(false);
-
   useEffect(() => {
+    // Hydrate persisted settings; children render immediately with defaults so
+    // the splash can hide on the very first frame (never return null above).
     (async () => {
       try {
         const [m, host, port, token, ip, wifi] = await Promise.all([
@@ -74,9 +74,7 @@ export function ConnProvider({ children }: { children: React.ReactNode }) {
               setHomeWifiState({ ssid: parsed.ssid, password: parsed.password ?? '' });
           } catch {}
         }
-      } finally {
-        setReady(true);
-      }
+      } catch {}
     })();
   }, []);
 
@@ -115,8 +113,7 @@ export function ConnProvider({ children }: { children: React.ReactNode }) {
     };
   }, [mode, config, provisionedIp, homeWifi]);
 
-  // Hold rendering until settings are loaded so the first frame is correct.
-  if (!ready) return null;
+  // Children render immediately with default config; settings hydrate after mount.
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

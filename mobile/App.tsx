@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { I18nProvider, useI18n } from './src/i18n';
 import { ConnProvider } from './src/server';
 import { usePalette } from './src/theme';
@@ -20,6 +21,11 @@ const Tab = createBottomTabNavigator();
 function Shell() {
   const palette = usePalette();
   const { t } = useI18n();
+
+  // The native splash must be dismissed explicitly once we can paint real UI.
+  useEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
   const navTheme = {
     ...DefaultTheme,
     colors: {

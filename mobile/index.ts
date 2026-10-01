@@ -5,7 +5,6 @@ import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
 // Apply the stored language's layout direction before the app renders.
-// Direction changes take effect on the next launch; texts switch immediately.
 AsyncStorage.getItem('lang')
   .then((lang) => {
     if (lang === 'ar') I18nManager.forceRTL(true);
@@ -14,18 +13,14 @@ AsyncStorage.getItem('lang')
   })
   .catch(() => undefined);
 
-// Persist any fatal JS error so the next launch (or the Plugs banner) can show
-// what happened instead of the app silently exiting.
+// Persist any fatal JS error so the next launch (or the Plugs banner) can show it.
 const ErrorUtilsGlobal = (globalThis as { ErrorUtils?: any }).ErrorUtils;
 if (ErrorUtilsGlobal?.getGlobalHandler) {
   const original = ErrorUtilsGlobal.getGlobalHandler();
   ErrorUtilsGlobal.setGlobalHandler((error: unknown, isFatal: boolean) => {
     try {
       const e = error as { message?: string; stack?: string };
-      AsyncStorage.setItem(
-        'last_js_error',
-        `${e?.message ?? String(error)}\n${e?.stack ?? ''}`,
-      );
+      AsyncStorage.setItem('last_js_error', `${e?.message ?? String(error)}\n${e?.stack ?? ''}`);
     } catch {}
     original(error, isFatal);
   });
@@ -60,16 +55,22 @@ function BootErrorScreen({ error }: { error: unknown }) {
   );
 }
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// requiring ./App lazily lets a module-evaluation crash render BootErrorScreen.
-registerRootComponent(() => {
+// Resolve the root component once, catching any module-evaluation crash, then
+// hand the actual component (not a factory) to registerRootComponent.
+let RootComponent: React.ComponentType = function UnreachableFallback() {
+  return React.createElement(BootErrorScreen, { error: new Error('unknown boot error') });
+};
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  RootComponent = require('./App').default;
+} catch (error) {
+  console.log('POWERK App require FAILED:', error, (error as { stack?: string })?.stack);
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('./App').default;
-  } catch (error) {
-    try {
-      AsyncStorage.setItem('last_js_error', String((error as Error)?.message ?? error));
-    } catch {}
-    return () => React.createElement(BootErrorScreen, { error });
-  }
-});
+    AsyncStorage.setItem('last_js_error', String((error as Error)?.message ?? error));
+  } catch {}
+  RootComponent = function BootFallback() {
+    return React.createElement(BootErrorScreen, { error });
+  };
+}
+
+registerRootComponent(RootComponent);

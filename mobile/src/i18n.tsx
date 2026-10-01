@@ -355,7 +355,7 @@ type Params = (string | number)[];
 
 export function translate(lang: 'en' | 'ar', key: keyof Dict, ...params: Params): string {
   const template = dicts[lang][key] ?? dicts.en[key] ?? String(key);
-  return template.replace(/\$(\d)/g, (_, i) => String(params[Number(i) - 1] ?? ''));
+  return template.replace(/%(\d+)\$[sd]/g, (_, i) => String(params[Number(i) - 1] ?? ''));
 }
 
 interface I18n {
