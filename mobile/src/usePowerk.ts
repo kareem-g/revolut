@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
+import * as Network from 'expo-network';
 import { Snapshot, setOutlet, snapshot } from './api';
 import { hub } from './hub/hub';
 import { startHubServer, stopHubServer } from './hub/server';
@@ -70,11 +70,8 @@ export function usePowerk(): PowerkState {
       return;
     }
     const read = () =>
-      NetInfo.fetch()
-        .then((s) => {
-          const details = s.details as { ipAddress?: string | null } | null;
-          setPhoneIp(s.type === 'wifi' ? details?.ipAddress ?? null : null);
-        })
+      Network.getIpAddressAsync()
+        .then((ip) => setPhoneIp(ip || null))
         .catch(() => setPhoneIp(null));
     void read();
     const sub = AppState.addEventListener('change', (state) => {
