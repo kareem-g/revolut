@@ -16,6 +16,7 @@ function wifiModule(): WifiReborn {
 }
 
 export async function joinNetwork(ssid: string, password: string): Promise<void> {
+  if (Platform.OS === 'web') throw new Error('web_no_wifi');
   // iOS: NEHotspotConfigurationManager — the system dialog asks the user to approve.
   // Android: WifiManager direct connect; may need location services on.
   await wifiModule().connectToProtectedSSID(ssid, password, false);
@@ -30,6 +31,7 @@ export function forgetNetwork(ssid: string): void {
 }
 
 export async function rejoinHome(home: { ssid: string; password: string }): Promise<void> {
+  if (Platform.OS === 'web') throw new Error('web_no_wifi');
   await wifiModule().connectToProtectedSSID(home.ssid, home.password, false);
 }
 

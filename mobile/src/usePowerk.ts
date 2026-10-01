@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { Snapshot, setOutlet, snapshot } from './api';
 import { hub } from './hub/hub';
@@ -25,7 +25,7 @@ const POLL_MS = 2000;
 /** Unified store: in-app hub in direct mode, HTTP polling in server mode. */
 export function usePowerk(): PowerkState {
   const conn = useConn();
-  const direct = conn.mode === 'direct';
+  const direct = conn.mode === 'direct' && Platform.OS !== 'web';
 
   // --- direct mode: live hub snapshots ------------------------------------
   const [hubStrips, setHubStrips] = useState(hub.snapshot().strips);

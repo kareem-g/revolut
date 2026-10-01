@@ -1,0 +1,38 @@
+name: web-export
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "mobile/**"
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install JS dependencies
+        working-directory: mobile
+        run: npm ci --legacy-peer-deps
+
+      - name: Export static web build
+        working-directory: mobile
+        run: npx expo export --platform web
+
+      - name: Upload web build
+        uses: actions/upload-artifact@v4
+        with:
+          name: powerk-web
+          path: mobile/dist
+          if-no-files-found: error

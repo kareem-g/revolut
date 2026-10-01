@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { I18nManager, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { I18nManager, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useI18n } from '../i18n';
 import { useConn } from '../server';
 import { usePowerk } from '../usePowerk';
@@ -77,15 +77,16 @@ export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
 
       <Card palette={palette}>
         <SectionTitle text={t('mode_title')} palette={palette} />
-        <Segmented
-          palette={palette}
-          value={conn.mode}
-          onChange={conn.setMode}
-          options={[
-            { value: 'direct', label: t('mode_direct') },
-            { value: 'server', label: t('mode_server') },
-          ]}
-        />
+        {Platform.OS !== 'web' &&
+          <Segmented
+            palette={palette}
+            value={conn.mode}
+            onChange={conn.setMode}
+            options={[
+              { value: 'direct', label: t('mode_direct') },
+              { value: 'server', label: t('mode_server') },
+            ]}
+          />}
         <BodyText
           text={conn.mode === 'direct' ? t('mode_direct_desc') : t('mode_server_desc')}
           palette={palette}

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Connection settings for both modes:
@@ -43,7 +44,7 @@ export function coercePort(value: number | null | undefined): number {
 }
 
 export function ConnProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setModeState] = useState<Mode>('direct');
+  const [mode, setModeState] = useState<Mode>(Platform.OS === 'web' ? 'server' : 'direct');
   const [config, setConfig] = useState<ServerConfig>(DEFAULTS);
   const [provisionedIp, setProvisionedIpState] = useState('');
   const [homeWifi, setHomeWifiState] = useState<WifiCreds>(EMPTY_WIFI);
@@ -60,7 +61,8 @@ export function ConnProvider({ children }: { children: React.ReactNode }) {
           AsyncStorage.getItem('provisioned_ip'),
           AsyncStorage.getItem('home_wifi'),
         ]);
-        if (m === 'server' || m === 'direct') setModeState(m);
+        if (Platform.OS === 'web') setModeState('server');
+        else if (m === 'server' || m === 'direct') setModeState(m);
         setConfig({
           host: host ?? '',
           port: coercePort(port ? Number(port) : 8080),

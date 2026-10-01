@@ -76,6 +76,8 @@ const en = {
   setup_footer: 'This app talks to the same JSON API as the web UI.',
   setup_use_app:
     'No PC handy? This app can provision the strip itself — open the Setup tab.',
+  web_no_provision:
+    'Provisioning needs the mobile app, which joins the strip’s setup Wi‑Fi and sends its credentials. From the browser, run the powerk.py provision command instead.',
 
   // ---- Connection modes ----------------------------------------------------
   mode_title: 'Mode',
@@ -249,6 +251,8 @@ const ar: Dict = {
     'كده خلصنا — المشترك هيتصل لوحده. مش محتاج تغيّر DNS الراوتر ولا تفتح أي منافذ.',
   setup_footer: 'التطبيق بيستخدم نفس واجهة JSON اللي بتستخدمها واجهة الويب.',
   setup_use_app: 'مفيش كمبيوتر؟ التطبيق نفسه يقدر يظبط المشترك — افتح تاب الإعداد.',
+  web_no_provision:
+    'الإعداد محتاج تطبيق الموبايل، اللي بيقدر يدخل على شبكة المشترك ويبعت بياناتها. من المتصفح، شغّل أمر powerk.py provision بداله.',
 
   mode_title: 'النمط',
   mode_direct: 'سيرفر مدمج',
