@@ -98,6 +98,16 @@ export function SetupScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [direct, conn.provisionedIp]);
 
+  // Recognize the strip's network: if the phone is already joined to
+  // TONLY_TAP_…, auto-fill the code (and its derived password) with no typing.
+  useEffect(() => {
+    if (phase !== 'form' || stripInput) return;
+    currentSsid().then((ssid) => {
+      if (ssid && isStripSsid(ssid)) setStripInput(ssid.trim());
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   // Start detection as soon as we enter the join phase.
   useEffect(() => {
     if (phase !== 'join') return;
