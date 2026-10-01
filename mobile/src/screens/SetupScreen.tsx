@@ -10,6 +10,7 @@ import { provisionStrip } from '../setup-conn';
 import { snapshot as apiSnapshot } from '../api';
 import { hub } from '../hub/hub';
 import { hasWifiModule, loadTcpSocket } from '../native';
+import { getLocalIp } from '../discover';
 import { BodyText, Card, Field, MessageCard, SectionTitle, useToast } from '../ui/bits';
 import { TonalButton } from '../ui/parts';
 import { R } from '../theme';
@@ -84,11 +85,18 @@ export function SetupScreen() {
 
   const stripNet = stripCodeToNetwork(stripInput);
 
-  // Prefill the phone's Wi-Fi IP once it is known (direct mode).
+  // Prefill the phone's own Wi-Fi IP in direct (built-in server) mode.
   useEffect(() => {
-    if (direct && !serverIp) setServerIp(conn.provisionedIp || '');
+    if (!direct) return;
+    if (conn.provisionedIp) {
+      if (!serverIp) setServerIp(conn.provisionedIp);
+      return;
+    }
+    getLocalIp().then((ip) => {
+      if (ip && !serverIp) setServerIp(ip);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conn.provisionedIp, direct]);
+  }, [direct, conn.provisionedIp]);
 
   // Start detection as soon as we enter the join phase.
   useEffect(() => {

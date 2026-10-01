@@ -5,6 +5,7 @@ import { useConn } from '../server';
 import { usePowerk } from '../usePowerk';
 import { usePalette } from '../theme';
 import { snapshot as apiSnapshot } from '../api';
+import { discoverServer, getLocalIp } from '../discover';
 import {
   BodyText,
   Card,
@@ -30,6 +31,24 @@ export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
   const [status, setStatus] = useState<string | null>(null);
   const [statusOk, setStatusOk] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [scanning, setScanning] = useState(false);
+
+  const scan = async () => {
+    setScanning(true);
+    try {
+      const ip = await getLocalIp();
+      const found = await discoverServer(ip, Number(port) || 8080);
+      if (found) {
+        setHost(found);
+        conn.save(found, Number(port) || 8080, token);
+        toast(t('scan_found', found));
+      } else {
+        toast(t('scan_none'));
+      }
+    } finally {
+      setScanning(false);
+    }
+  };
 
   const commit = () => conn.save(host, Number(port) || 8080, token);
 
@@ -106,12 +125,20 @@ export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
                 </Text>
               )}
             </View>
-            <BodyText text={t('lang_rtl_note')} palette={palette} />
+            <BodyText text={t('direct_hint')} palette={palette} />
             <TonalButton label={t('prov_title')} palette={palette} onPress={onOpenSetup} />
           </>
         ) : (
           <>
             <BodyText text={t('server_body')} palette={palette} />
+            <TonalButton
+              label={scanning ? t('scanning') : t('scan_network')}
+              variant="outlined"
+              pending={scanning}
+              enabled={!scanning}
+              palette={palette}
+              onPress={() => void scan()}
+            />
             <Field
               label={t('field_host')}
               value={host}

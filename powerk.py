@@ -324,6 +324,19 @@ class Web(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    # CORS: lets the browser web build (and the app's network scan on web) talk
+    # to this server from any origin. The UI port should still be token-protected
+    # when it is reachable from anything but a trusted LAN.
+    def end_headers(self):
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Token, Authorization")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        super().end_headers()
+
+    def do_OPTIONS(self):
+        self.send_response(204)
+        self.end_headers()
+
     def _authorized(self) -> bool:
         """No token set -> open. Otherwise: X-Token header, HTTP Basic (browser) or ?t= (simple clients)."""
         if not self.token:
