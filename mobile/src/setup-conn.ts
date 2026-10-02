@@ -39,17 +39,21 @@ function exchange(line: string, onLog: LogSink): Promise<string> {
     };
 
     socket = TcpSocket.createConnection(
-      { host: SETUP_HOST, port: SETUP_PORT },
+      { host: SETUP_HOST, port: SETUP_PORT, noDelay: true },
       () => {
         // Only write once the connection is actually open — writing earlier
         // throws "Socket is closed" (the library still marks the socket pending).
         onLog('log_connected', SETUP_HOST);
-        try {
-          socket.write(`${line}\r\n`, 'utf8');
-          onLog('log_sent', line);
-        } catch (e) {
-          finish(() => reject(e instanceof Error ? e : new Error(String(e))));
-        }
+        // Short settle beat before writing: the first small frame can otherwise
+        // be lost and the strip closes with no reply.
+        setTimeout(() => {
+          try {
+            socket.write(`${line}\r\n`, 'utf8');
+            onLog('log_sent', line);
+          } catch (e) {
+            finish(() => reject(e instanceof Error ? e : new Error(String(e))));
+          }
+        }, 120);
       },
     );
     socket.setEncoding('utf8');
@@ -92,7 +96,7 @@ function canReach(): Promise<void> {
     const TcpSocket = loadTcpSocket();
     if (!TcpSocket) return reject(new SetupError('err_no_native'));
     let settled = false;
-    const socket = TcpSocket.createConnection({ host: SETUP_HOST, port: SETUP_PORT }, () => {
+    const socket = TcpSocket.createConnection({ host: SETUP_HOST, port: SETUP_PORT, noDelay: true }, () => {
       if (settled) return;
       settled = true;
       socket.destroy();
@@ -125,6 +129,26 @@ export class SetupError extends Error {
 }
 
 /**
+ * Sends one provisioning command on its own connection, retrying transport
+ * failures a couple of times (the strip's setup service can drop the first).
+ */
+async function sendSetupCommand(cmd: string, onLog: LogSink): Promise<string> {
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      return await exchange(cmd, onLog);
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 3) {
+        onLog('log_refused', String(attempt));
+        await new Promise((r) => setTimeout(r, 800));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Sends both provisioning commands, retrying reachability for a while first
  * (powerk.py does the same wait/retry loop around the setup port).
  */
@@ -145,11 +169,11 @@ export async function provisionStrip(
     }
   }
 
-  const ipReply = await exchange(buildIpCommand(serverIp), onLog);
+  const ipReply = await sendSetupCommand(buildIpCommand(serverIp), onLog);
   if (!expectsIpOk(ipReply))
     throw new SetupError('err_strip_answered', ipReply, 'up:ip:ip_ok');
 
-  const connectReply = await exchange(buildConnectCommand(home), onLog);
+  const connectReply = await sendSetupCommand(buildConnectCommand(home), onLog);
   if (!expectsConnectOk(connectReply))
     throw new SetupError('err_strip_answered', connectReply, 'up:connect:connect_ok');
 }
