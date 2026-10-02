@@ -37,13 +37,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Expo SDK 57 (expo-modules-jsi 57.x) is built against Xcode 26.0/26.1;
-      # newer Xcode 26.x toolchains reject its Swift 6 sources.
-      - name: Select Xcode 26.1 (Expo SDK 57 supported toolchain)
+      # expo-modules-jsi 57.x compiles cleanly in Swift 6 mode (correct ABI vs the
+      # prebuilt ExpoModulesCore) on Xcode 26.0; later 26.x point releases tighten
+      # Swift concurrency and break its source. No source patches — patching it
+      # (e.g. downgrading to Swift 5) breaks the ABI and crashes at launch.
+      - name: Select Xcode 26.0
         run: |
           ls -d /Applications/Xcode*.app | sort -V
           XCODE=""
-          for v in 26.1 26.1.0 26.0 26.0.0; do
+          for v in 26.0 26.0.0 26.1; do
             [ -d "/Applications/Xcode_$v.app" ] && XCODE="/Applications/Xcode_$v.app" && break
           done
           [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_2*.app | sort -V | head -1)
@@ -60,35 +62,6 @@ jobs:
       - name: Install JS dependencies
         working-directory: ${{ env.PROJECT_DIR }}
         run: npm ci --legacy-peer-deps
-
-      # expo-modules-jsi 57.x annotates constructors with SWIFT_RETURNS_RETAINED,
-      # which the Xcode 26 C++ interop rejects. Fixed upstream in SDK 58.
-      - name: Patch expo-modules-jsi for Swift 6.2
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          H=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
-          grep -n "SWIFT_RETURNS_RETAINED RuntimeScheduler(" "$H"
-          sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/' "$H"
-          rm -f "$H.bak"
-          # Swift 6.2 rejects `weak let`; the package still declares several.
-          grep -rl "weak let " node_modules/expo-modules-jsi/apple/Sources --include="*.swift" \
-            | xargs -I{} sh -c "sed -i.bak 's/weak let /weak var /g' {}; rm -f {}.bak"
-          # Swift 5 language mode turns the Swift-6-only strict-concurrency
-          # diagnostics into warnings; the bare regex literal it uses needs the
-          # BareSlashRegexLiterals upcoming feature in v5 mode.
-          P=node_modules/expo-modules-jsi/apple/Package.swift
-          sed -i.bak 's/swiftLanguageModes: \[\.v6\]/swiftLanguageModes: [.v5]/' "$P"
-          sed -i.bak 's/\.interoperabilityMode(\.Cxx),/.interoperabilityMode(.Cxx),\n        .enableUpcomingFeature("BareSlashRegexLiterals"),/' "$P"
-          rm -f "$P.bak"
-          S=node_modules/expo-modules-jsi/apple/ExpoModulesJSI.podspec
-          sed -i.bak "s/swift_version  = '6.0'/swift_version  = '5.0'/" "$S"
-          rm -f "$S.bak"
-          # Swift 5 mode does not infer actor isolation for stored-property
-          # defaults; give the actor-isolated helper an explicit nonisolated init.
-          JP=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI/Runtime/Values/JavaScriptPromise.swift
-          sed -i.bak 's/  private final class LongLivedState: LongLivedObject {/  private final class LongLivedState: LongLivedObject {\n    nonisolated init() {}/' "$JP"
-          rm -f "$JP.bak"
-          grep -n "swiftLanguageModes\|BareSlash\|swift_version" "$P" "$S"
 
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
