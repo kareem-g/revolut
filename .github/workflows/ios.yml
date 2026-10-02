@@ -77,8 +77,13 @@ jobs:
           grep -rl "weak let runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" \
             | xargs sed -i.bak 's/weak let runtime/nonisolated(unsafe) weak var runtime/'
           find node_modules/expo-modules-jsi/apple/Sources -name "*.bak" -delete
+          # "sending … risks causing data races" are only errors under Swift 6's
+          # *complete* concurrency checking; minimal keeps Swift 6 mode + ABI.
+          P=node_modules/expo-modules-jsi/apple/Package.swift
+          sed -i.bak 's/\.interoperabilityMode(\.Cxx),/.interoperabilityMode(.Cxx),\n        .unsafeFlags(["-strict-concurrency=minimal"]),/' "$P"
+          rm -f "$P.bak"
           grep -rn "nonisolated(unsafe) weak var runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" | wc -l
-          grep -n "swiftLanguageModes" node_modules/expo-modules-jsi/apple/Package.swift
+          grep -n "swiftLanguageModes\|strict-concurrency" "$P"
 
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
