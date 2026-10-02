@@ -81,9 +81,12 @@ jobs:
           # *complete* concurrency checking; minimal keeps Swift 6 mode + ABI.
           P=node_modules/expo-modules-jsi/apple/Package.swift
           sed -i.bak 's/\.interoperabilityMode(\.Cxx),/.interoperabilityMode(.Cxx),\n        .unsafeFlags(["-strict-concurrency=minimal"]),/' "$P"
+          # Drop the NonisolatedNonsendingByDefault upcoming feature — it is what
+          # makes the `sending` pointer captures in JavaScriptRuntime.swift fail.
+          sed -i.bak '/NonisolatedNonsendingByDefault/d' "$P"
           rm -f "$P.bak"
           grep -rn "nonisolated(unsafe) weak var runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" | wc -l
-          grep -n "swiftLanguageModes\|strict-concurrency" "$P"
+          grep -n "swiftLanguageModes\|strict-concurrency\|NonisolatedNonsending" "$P"
 
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
