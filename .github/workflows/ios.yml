@@ -63,6 +63,23 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: npm ci --legacy-peer-deps
 
+      # expo-modules-jsi 57.1.1 is shipped by Expo as a *prebuilt* framework; on
+      # our source build these two Swift 6 diagnostics are errors. Fix them
+      # WITHOUT changing language mode — the ABI must match the prebuilt
+      # ExpoModulesCore (a Swift 5 downgrade breaks JavaScriptActor.runIsolated
+      # and causes a dyld "Symbol not found" crash at launch).
+      - name: Patch expo-modules-jsi (ABI-safe)
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: |
+          H=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
+          sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/' "$H"
+          rm -f "$H.bak"
+          grep -rl "weak let runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" \
+            | xargs sed -i.bak 's/weak let runtime/nonisolated(unsafe) weak var runtime/'
+          find node_modules/expo-modules-jsi/apple/Sources -name "*.bak" -delete
+          grep -rn "nonisolated(unsafe) weak var runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" | wc -l
+          grep -n "swiftLanguageModes" node_modules/expo-modules-jsi/apple/Package.swift
+
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
         run: npx expo prebuild --platform ios --no-install
