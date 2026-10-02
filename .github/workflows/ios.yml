@@ -37,22 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # expo-modules-jsi 57.x compiles cleanly in Swift 6 mode (correct ABI vs the
-      # prebuilt ExpoModulesCore) on Xcode 26.0; later 26.x point releases tighten
-      # Swift concurrency and break its source. No source patches — patching it
-      # (e.g. downgrading to Swift 5) breaks the ABI and crashes at launch.
-      - name: Select Xcode 26.0
-        run: |
-          ls -d /Applications/Xcode*.app | sort -V
-          XCODE=""
-          for v in 26.0 26.0.0 26.1; do
-            [ -d "/Applications/Xcode_$v.app" ] && XCODE="/Applications/Xcode_$v.app" && break
-          done
-          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_2*.app | sort -V | head -1)
-          echo "Selecting $XCODE"
-          sudo xcode-select -s "$XCODE/Contents/Developer"
-          xcodebuild -version && swift --version
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -62,31 +46,6 @@ jobs:
       - name: Install JS dependencies
         working-directory: ${{ env.PROJECT_DIR }}
         run: npm ci --legacy-peer-deps
-
-      # expo-modules-jsi 57.1.1 is shipped by Expo as a *prebuilt* framework; on
-      # our source build these two Swift 6 diagnostics are errors. Fix them
-      # WITHOUT changing language mode — the ABI must match the prebuilt
-      # ExpoModulesCore (a Swift 5 downgrade breaks JavaScriptActor.runIsolated
-      # and causes a dyld "Symbol not found" crash at launch).
-      - name: Patch expo-modules-jsi (ABI-safe)
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          H=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
-          sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/' "$H"
-          rm -f "$H.bak"
-          grep -rl "weak let runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" \
-            | xargs sed -i.bak 's/weak let runtime/nonisolated(unsafe) weak var runtime/'
-          find node_modules/expo-modules-jsi/apple/Sources -name "*.bak" -delete
-          # "sending … risks causing data races" are only errors under Swift 6's
-          # *complete* concurrency checking; minimal keeps Swift 6 mode + ABI.
-          P=node_modules/expo-modules-jsi/apple/Package.swift
-          sed -i.bak 's/\.interoperabilityMode(\.Cxx),/.interoperabilityMode(.Cxx),\n        .unsafeFlags(["-strict-concurrency=minimal"]),/' "$P"
-          # Drop the NonisolatedNonsendingByDefault upcoming feature — it is what
-          # makes the `sending` pointer captures in JavaScriptRuntime.swift fail.
-          sed -i.bak '/NonisolatedNonsendingByDefault/d' "$P"
-          rm -f "$P.bak"
-          grep -rn "nonisolated(unsafe) weak var runtime" node_modules/expo-modules-jsi/apple/Sources --include="*.swift" | wc -l
-          grep -n "swiftLanguageModes\|strict-concurrency\|NonisolatedNonsending" "$P"
 
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
