@@ -26,6 +26,7 @@ function exchange(line: string, onLog: LogSink): Promise<string> {
     let settled = false;
     let buffer = '';
     let replyTimer: ReturnType<typeof setTimeout> | null = null;
+    let socket: any = null;
 
     const finish = (fn: () => void) => {
       if (settled) return;
@@ -37,9 +38,19 @@ function exchange(line: string, onLog: LogSink): Promise<string> {
       fn();
     };
 
-    const socket = TcpSocket.createConnection(
+    socket = TcpSocket.createConnection(
       { host: SETUP_HOST, port: SETUP_PORT },
-      () => onLog('log_connected', SETUP_HOST),
+      () => {
+        // Only write once the connection is actually open — writing earlier
+        // throws "Socket is closed" (the library still marks the socket pending).
+        onLog('log_connected', SETUP_HOST);
+        try {
+          socket.write(`${line}\r\n`, 'utf8');
+          onLog('log_sent', line);
+        } catch (e) {
+          finish(() => reject(e instanceof Error ? e : new Error(String(e))));
+        }
+      },
     );
     socket.setEncoding('utf8');
 
@@ -72,9 +83,6 @@ function exchange(line: string, onLog: LogSink): Promise<string> {
       () => finish(() => reject(new SetupError('log_timeout'))),
       REPLY_TIMEOUT_MS,
     );
-
-    socket.write(`${line}\r\n`, 'utf8');
-    onLog('log_sent', line);
   });
 }
 
