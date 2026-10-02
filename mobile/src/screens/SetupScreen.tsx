@@ -9,7 +9,7 @@ import { joinNetwork, rejoinHome } from '../wifi';
 import { provisionStrip } from '../setup-conn';
 import { snapshot as apiSnapshot } from '../api';
 import { hub } from '../hub/hub';
-import { hasWifiModule, loadTcpSocket } from '../native';
+import { loadTcpSocket } from '../native';
 import { getLocalIp } from '../discover';
 import { BodyText, Card, Field, MessageCard, SectionTitle, useToast } from '../ui/bits';
 import { TonalButton } from '../ui/parts';
@@ -49,18 +49,10 @@ function probeSetupPort(timeoutMs = 1500): Promise<boolean> {
 }
 
 function currentSsid(): Promise<string | null> {
-  return new Promise((resolve) => {
-    try {
-      if (!hasWifiModule()) return resolve(null);
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const WifiManager = require('react-native-wifi-reborn').default;
-      WifiManager.getCurrentWifiSSID()
-        .then((ssid: string) => resolve(ssid || null))
-        .catch(() => resolve(null));
-    } catch {
-      resolve(null);
-    }
-  });
+  // Disabled: react-native-wifi-reborn's getCurrentWifiSSID() crashes on modern
+  // iOS (NEHotspotNetwork.fetchCurrent + missing wifi-info entitlement), so we
+  // never read the SSID. Detection relies on the TCP probe instead.
+  return Promise.resolve(null);
 }
 
 const isStripSsid = (ssid: string | null) =>
