@@ -623,6 +623,7 @@ def main() -> int:
         args.port = getattr(args, "port", DEVICE_PORT)
         args.web_port = getattr(args, "web_port", WEB_PORT)
         args.ip = getattr(args, "ip", None)
+        args.token = getattr(args, "token", "")
         try:
             return asyncio.run(cmd_serve(args))
         except KeyboardInterrupt:
