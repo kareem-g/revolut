@@ -41,19 +41,24 @@ function exchange(line: string, onLog: LogSink): Promise<string> {
     socket = TcpSocket.createConnection(
       { host: SETUP_HOST, port: SETUP_PORT, noDelay: true },
       () => {
-        // Only write once the connection is actually open — writing earlier
-        // throws "Socket is closed" (the library still marks the socket pending).
+        // Write the moment the socket accepts it. Writing too early throws
+        // "Socket is closed" (library still marks it pending); waiting too long
+        // lets the strip's short setup session close first. So: try now, retry
+        // briefly at 20 ms while it's still pending.
         onLog('log_connected', SETUP_HOST);
-        // Short settle beat before writing: the first small frame can otherwise
-        // be lost and the strip closes with no reply.
-        setTimeout(() => {
+        let tries = 0;
+        const tryWrite = () => {
+          if (settled) return;
           try {
             socket.write(`${line}\r\n`, 'utf8');
             onLog('log_sent', line);
           } catch (e) {
-            finish(() => reject(e instanceof Error ? e : new Error(String(e))));
+            tries += 1;
+            if (tries < 25) setTimeout(tryWrite, 20);
+            else finish(() => reject(e instanceof Error ? e : new Error(String(e))));
           }
-        }, 120);
+        };
+        tryWrite();
       },
     );
     socket.setEncoding('utf8');
