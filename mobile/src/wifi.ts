@@ -18,8 +18,11 @@ function wifiModule(): WifiReborn {
 }
 
 export async function joinNetwork(ssid: string, password: string): Promise<void> {
-  if (Platform.OS === 'web') throw new Error('web_no_wifi');
-  // iOS: NEHotspotConfigurationManager — the system dialog asks the user to approve.
+  // iOS: no auto-join. NEHotspotConfiguration needs the HotspotConfiguration
+  // entitlement (absent on a sideloaded/free build), and wifi-reborn's internal
+  // `getWifiSSID` -> `fetchCurrent` then crashes (objc_retain EXC_BAD_ACCESS).
+  // User joins manually in Settings; detection runs over TCP.
+  if (Platform.OS === 'ios' || Platform.OS === 'web') return;
   // Android: WifiManager direct connect; may need location services on.
   await wifiModule().connectToProtectedSSID(ssid, password, false);
 }
@@ -33,7 +36,7 @@ export function forgetNetwork(ssid: string): void {
 }
 
 export async function rejoinHome(home: { ssid: string; password: string }): Promise<void> {
-  if (Platform.OS === 'web') throw new Error('web_no_wifi');
+  if (Platform.OS === 'ios' || Platform.OS === 'web') return;
   await wifiModule().connectToProtectedSSID(home.ssid, home.password, false);
 }
 

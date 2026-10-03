@@ -336,11 +336,14 @@ export function SetupScreen() {
           <SectionTitle text={t('prov_step_join')} palette={palette} />
           <BodyText text={t('prov_hold_button')} palette={palette} />
           <Text style={[styles.detecting, { color: palette.primary }]}>{t('prov_detecting')}</Text>
-          <TonalButton
-            label={t('prov_join_auto', stripNet?.ssid ?? '')}
-            palette={palette}
-            onPress={() => void joinAutomatically()}
-          />
+          {/* iOS has no auto-join (no HotspotConfiguration entitlement); join manually */}
+          {Platform.OS !== 'ios' && (
+            <TonalButton
+              label={t('prov_join_auto', stripNet?.ssid ?? '')}
+              palette={palette}
+              onPress={() => void joinAutomatically()}
+            />
+          )}
           <TonalButton
             label={t('prov_open_wifi_settings')}
             variant="outlined"
