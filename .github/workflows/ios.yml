@@ -150,7 +150,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete-asset ipa-latest powerk-unsigned.ipa --yes --repo ${{ github.repository }} 2>/dev/null || true
+          gh release view ipa-latest --repo ${{ github.repository }} >/dev/null 2>&1 || \
+            gh release create ipa-latest --repo ${{ github.repository }} --target "$GITHUB_SHA" --title "powerk IPA (latest build)" \
+              --notes "Unsigned IPA. Sign with your certificate (Sideloadly/iOS App Signer) or use EAS for a signed build."
           gh release upload ipa-latest "$IPA_PATH#powerk-unsigned.ipa" --repo ${{ github.repository }} --clobber
 
       - name: Clean up keychain and profile
