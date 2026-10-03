@@ -3,7 +3,7 @@
 Local control for the LG U+ / Jinheung **MTTL-W01** 4-outlet smart strip — from a
 phone, from a PC, from anywhere if you run the server on a VPS.
 
-**English** | [العربية](README.ar.md)
+**English** | [Arabic](README.ar.md)
 
 | | |
 |---|---|
