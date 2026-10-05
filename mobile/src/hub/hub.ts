@@ -279,7 +279,7 @@ class Hub {
     const strips = [...this.devices.values()]
       .sort((a, b) => (a.mac < b.mac ? -1 : 1))
       .map((d): Strip => {
-        const outlets = [...d.outlets.values()].sort((a, b) => a.n - b.n);
+        const outlets = [...d.outlets.values()].sort((a, b) => a.n - b.n).map((o) => ({ ...o, name: `Outlet ${o.n}` }));
         const powerW = round(outlets.reduce((s, o) => s + o.powerW, 0), 2);
         return {
           mac: d.mac,

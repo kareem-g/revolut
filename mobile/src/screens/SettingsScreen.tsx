@@ -4,7 +4,7 @@ import { useI18n } from '../i18n';
 import { useConn } from '../server';
 import { usePowerk } from '../usePowerk';
 import { usePalette } from '../theme';
-import { snapshot as apiSnapshot } from '../api';
+import { snapshot as apiSnapshot, setCost, Cost } from '../api';
 import { discoverServer, getLocalIp } from '../discover';
 import {
   BodyText,
@@ -198,6 +198,8 @@ export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
         )}
       </Card>
 
+      {conn.mode === 'server' && conn.configured && <CostCard />}
+
       <Card palette={palette}>
         <SectionTitle text={t('setup_title')} palette={palette} />
         <SetupStep n={1} text={t('setup_step_1')} palette={palette} />
@@ -235,3 +237,39 @@ const styles = StyleSheet.create({
   stepBadgeText: { fontSize: 11, fontWeight: '700' },
   stepText: { fontSize: 14, lineHeight: 20 },
 });
+
+function CostCard() {
+  const { t } = useI18n();
+  const palette = usePalette();
+  const conn = useConn();
+  const { snapshot } = usePowerk();
+  const toast = useToast();
+  const [currency, setCurrency] = useState(snapshot?.cost?.currency ?? '$');
+  const [perKwh, setPerKwh] = useState(String(snapshot?.cost?.per_kwh ?? 0));
+
+  return (
+    <Card palette={palette}>
+      <SectionTitle text={t('cost_title')} palette={palette} />
+      <View style={{ flexDirection: 'row', gap: 12 }}>
+        <Field label={t('currency')} value={currency} onChangeText={setCurrency} palette={palette} style={{ flex: 1 }} />
+        <Field
+          label={t('price_per_kwh')}
+          value={perKwh}
+          onChangeText={(v) => setPerKwh(v.replace(/[^0-9.]/g, ''))}
+          keyboardType="numeric"
+          palette={palette}
+          style={{ flex: 1.4 }}
+        />
+      </View>
+      <TonalButton
+        label={t('save')}
+        palette={palette}
+        onPress={() =>
+          void setCost(conn.base, conn.token, currency, Number(perKwh) || 0)
+            .then(() => toast(t('saved')))
+            .catch((e) => toast(t('connection_failed_detail', e instanceof Error ? e.message : '')))
+        }
+      />
+    </Card>
+  );
+}

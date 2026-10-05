@@ -15,6 +15,7 @@ import { ErrorBoundary } from './src/ui/ErrorBoundary';
 import { PlugsScreen } from './src/screens/PlugsScreen';
 import { SetupScreen } from './src/screens/SetupScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
+import { AutomationScreen } from './src/screens/AutomationScreen';
 
 const Tab = createBottomTabNavigator();
 
@@ -52,6 +53,10 @@ function Shell() {
                   ? focused
                     ? 'home'
                     : 'home-outline'
+                  : route.name === 'automation'
+                    ? focused
+                      ? 'time'
+                      : 'time-outline'
                   : route.name === 'setup'
                     ? focused
                       ? 'flash'
@@ -66,6 +71,11 @@ function Shell() {
             name="plugs"
             component={PlugsScreenWithNav}
             options={{ title: t('tab_plugs') }}
+          />
+          <Tab.Screen
+            name="automation"
+            component={AutomationScreen}
+            options={{ title: t('automation') }}
           />
           <Tab.Screen name="setup" component={SetupScreen} options={{ title: t('tab_setup') }} />
           <Tab.Screen

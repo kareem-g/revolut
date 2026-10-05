@@ -152,7 +152,7 @@ export function usePowerk(): PowerkState {
   );
 
   const snapshotData: Snapshot | null = direct
-    ? { serverIp: phoneIp ?? '', strips: hubStrips }
+    ? { serverIp: phoneIp ?? '', cost: { currency: '$', per_kwh: 0 }, strips: hubStrips }
     : httpSnap;
   const error = direct ? (hubState === 'failed' ? 'port 10086 busy' : null) : httpError;
   const loading = direct ? false : httpLoading;

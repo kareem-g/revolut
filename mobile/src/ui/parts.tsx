@@ -268,6 +268,7 @@ export function StripCard({
   strings,
   palette,
   onCommand,
+  onRenameStrip,
 }: {
   strip: Strip;
   showMac: boolean;
@@ -287,6 +288,7 @@ export function StripCard({
   };
   palette: Palette;
   onCommand: (mac: string, outlet: number, on: boolean) => void;
+  onRenameStrip?: () => void;
 }) {
   const stateOf = (n: number) => pending[`${strip.mac}:${n}`] ?? strip.outlets.find((o) => o.n === n)?.on ?? false;
   const isPending = (n: number) => pending[`${strip.mac}:${n}`] !== undefined;
@@ -306,10 +308,20 @@ export function StripCard({
       <View style={styles.cardHead}>
         <StatusDot online={strip.online} palette={palette} />
         <View style={{ flex: 1, marginStart: 10 }}>
-          <Text style={[styles.cardTitle, { color: palette.onSurface }]} numberOfLines={1}>
-            {strings.name}
-            {showMac ? ` · ${strip.mac.slice(-7)}` : ''}
-          </Text>
+          {onRenameStrip ? (
+            <Pressable onPress={onRenameStrip} hitSlop={8}>
+              <Text style={[styles.cardTitle, { color: palette.onSurface }]} numberOfLines={1}>
+                {strings.name}
+                {showMac ? ` · ${strip.mac.slice(-7)}` : ''}
+                {'  ✎'}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text style={[styles.cardTitle, { color: palette.onSurface }]} numberOfLines={1}>
+              {strings.name}
+              {showMac ? ` · ${strip.mac.slice(-7)}` : ''}
+            </Text>
+          )}
           <Text style={[styles.cardFw, { color: palette.onSurfaceVariant }]}>{strings.fw(strip.fw)}</Text>
         </View>
       </View>
