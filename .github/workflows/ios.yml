@@ -37,19 +37,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # expo-modules-jsi 57.x compiles cleanly in Swift 6 mode (correct ABI vs the
-      # prebuilt ExpoModulesCore) on Xcode 26.0; later 26.x point releases tighten
-      # Swift concurrency and break its source. The default Xcode on macos-15 is
-      # too old (Swift 6.1), and patching the sources to Swift 5 breaks the ABI
-      # and makes the app crash at launch (dyld: symbol not found).
-      - name: Select Xcode 26.0
+      # expo-modules-jsi 57.1.1 (Swift 6 mode, library-evolution on) does not
+      # compile under the Swift 6.2 toolchain of Xcode 26.0: `weak let` and the
+      # C++ SWIFT_RETURNS_RETAINED constructor are rejected, and the strict
+      # `sending` diagnostics are errors. Newer Swift releases accept these same
+      # sources, so use the newest Xcode on the image. Do NOT patch the sources
+      # down to Swift 5 — that breaks the ABI against prebuilt ExpoModulesCore
+      # and the app dies at launch with a dyld "symbol not found".
+      - name: Select newest Xcode 26.x
         run: |
           ls -d /Applications/Xcode*.app | sort -V
-          XCODE=""
-          for v in 26.0 26.0.0 26.1; do
-            [ -d "/Applications/Xcode_$v.app" ] && XCODE="/Applications/Xcode_$v.app" && break
-          done
-          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_2*.app | sort -V | head -1)
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -z "$XCODE" ] && XCODE=$(ls -d /Applications/Xcode_2*.app 2>/dev/null | sort -V | tail -1)
+          [ -z "$XCODE" ] && XCODE=/Applications/Xcode.app
           echo "Selecting $XCODE"
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version && swift --version
