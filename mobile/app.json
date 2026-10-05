@@ -56,7 +56,9 @@
             "backgroundColor": "#0F1511"
           }
         }
-      ]
+      ],
+      "expo-status-bar",
+      "expo-font"
     ]
   }
 }
