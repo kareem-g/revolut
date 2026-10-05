@@ -64,20 +64,13 @@ jobs:
         working-directory: ${{ env.PROJECT_DIR }}
         run: npm ci --legacy-peer-deps
 
-      # Swift 6.2.4 rejects `SWIFT_RETURNS_RETAINED` on these C++ constructors
-      # (the class is declared SWIFT_SHARED_REFERENCE on its closing brace, but
-      # the compiler won't accept the annotation on an initializer). Upstream
-      # moved the annotation to static create() factories; the equivalent fix
-      # here is to drop it — Swift's default for an initializer is already +1,
-      # which matches the object's initial refCount of 1. This header is internal
-      # to the JSI package, so the prebuilt ExpoModulesCore ABI is unaffected.
-      - name: Patch expo-modules-jsi C++ interop annotation
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: |
-          H=node_modules/expo-modules-jsi/apple/Sources/ExpoModulesJSI-Cxx/include/RuntimeScheduler.h
-          sed -i.bak 's/SWIFT_RETURNS_RETAINED RuntimeScheduler(/RuntimeScheduler(/g' "$H"
-          rm -f "$H.bak"
-          grep -n "SWIFT_RETURNS_RETAINED" "$H" || echo "annotation removed"
+      # expo-modules-jsi 57.1.1 does not compile under Swift 6.2.4 (Xcode 26.x):
+      # an invalid SWIFT_RETURNS_RETAINED on a C++ constructor and pointer
+      # captures that the `sending` analysis rejects. The script ports Expo's
+      # own upstream fixes and keeps Swift 6 mode, so the ABI still matches the
+      # prebuilt ExpoModulesCore. See the script for the full reasoning.
+      - name: Patch expo-modules-jsi for the Swift 6.2 toolchain
+        run: python3 .github/scripts/patch-expo-modules-jsi.py "${{ env.PROJECT_DIR }}"
 
       - name: Generate native iOS project (expo prebuild)
         working-directory: ${{ env.PROJECT_DIR }}
