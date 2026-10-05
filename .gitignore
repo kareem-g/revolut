@@ -33,3 +33,7 @@ android/captures/
 Thumbs.db
 desktop.ini
 
+
+# runtime data (names/cost/schedules/history)
+powerk-data.json
+powerk-data.json.tmp

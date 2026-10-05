@@ -24,6 +24,8 @@ import socket
 import sys
 import threading
 import time
+import uuid
+from datetime import date, datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -71,6 +73,148 @@ def parse_getinfo(line: str) -> list[dict]:
             "temp_c": int(g["temperature"]),
         })
     return out
+
+
+DATA_FILE = "powerk-data.json"
+
+
+class Store:
+    """Thread-safe JSON persistence for names, cost, schedules, voltage rules and
+    energy history. Lives next to powerk.py; created at import so every command
+    reads the same data."""
+
+    def __init__(self, path: str):
+        self.path = Path(path)
+        self.lock = threading.Lock()
+        self.data = {
+            "names": {},            # mac -> {"strip": str|None, "outlets": {str(n): str}}
+            "cost": {"currency": "$", "per_kwh": 0.0},
+            "schedules": [],        # [{id, mac, outlet, on, time, days:[int]}]
+            "voltage_rules": [],    # [{id, mac, outlet, op, volts, action}]
+            "energy": {},           # mac -> {"outlets": {n: {total_kwh}}, "daily": [{date, kwh}]}
+        }
+        try:
+            if self.path.is_file():
+                loaded = json.loads(self.path.read_text())
+                for k in ("names", "cost", "schedules", "voltage_rules", "energy"):
+                    if k in loaded:
+                        self.data[k] = loaded[k]
+        except Exception:
+            pass
+
+    def save(self):
+        with self.lock:
+            tmp = self.path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(self.data, indent=2))
+            tmp.replace(self.path)
+
+    # --- names ---
+    def strip_name(self, mac: str) -> str | None:
+        return (self.data["names"].get(mac.upper()) or {}).get("strip")
+
+    def outlet_name(self, mac: str, n: int) -> str | None:
+        return (self.data["names"].get(mac.upper()) or {}).get("outlets", {}).get(str(n))
+
+    def set_name(self, mac: str, name: str | None = None, outlet: int | None = None, outlet_name: str | None = None):
+        with self.lock:
+            mac = mac.upper()
+            entry = self.data["names"].setdefault(mac, {"strip": None, "outlets": {}})
+            if outlet is None:
+                entry["strip"] = (name or "").strip() or None
+            else:
+                entry["outlets"][str(outlet)] = (outlet_name or "").strip() or None
+        self.save()
+
+    # --- cost ---
+    def cost(self) -> dict:
+        return dict(self.data["cost"])
+
+    def set_cost(self, currency: str, per_kwh: float):
+        with self.lock:
+            self.data["cost"] = {"currency": str(currency or "$"), "per_kwh": float(per_kwh or 0)}
+        self.save()
+
+    # --- schedules ---
+    def schedules(self) -> list:
+        return list(self.data["schedules"])
+
+    def add_schedule(self, mac: str, outlet: int, on: bool, time_str: str, days: list) -> str:
+        with self.lock:
+            sid = uuid.uuid4().hex[:8]
+            self.data["schedules"].append({
+                "id": sid, "mac": mac.upper(), "outlet": int(outlet),
+                "on": bool(on), "time": time_str, "days": [int(d) for d in (days or [])],
+            })
+        self.save()
+        return sid
+
+    def del_schedule(self, sid: str) -> bool:
+        with self.lock:
+            before = len(self.data["schedules"])
+            self.data["schedules"] = [s for s in self.data["schedules"] if s["id"] != sid]
+        if len(self.data["schedules"]) != before:
+            self.save()
+            return True
+        return False
+
+    # --- voltage rules ---
+    def voltage_rules(self) -> list:
+        return list(self.data["voltage_rules"])
+
+    def add_voltage_rule(self, mac: str, outlet: int, op: str, volts: float, action: str) -> str:
+        with self.lock:
+            rid = uuid.uuid4().hex[:8]
+            self.data["voltage_rules"].append({
+                "id": rid, "mac": mac.upper(), "outlet": int(outlet),
+                "op": op, "volts": float(volts), "action": action,
+            })
+        self.save()
+        return rid
+
+    def del_voltage_rule(self, rid: str) -> bool:
+        with self.lock:
+            before = len(self.data["voltage_rules"])
+            self.data["voltage_rules"] = [r for r in self.data["voltage_rules"] if r["id"] != rid]
+        if len(self.data["voltage_rules"]) != before:
+            self.save()
+            return True
+        return False
+
+    # --- energy history ---
+    def add_energy(self, mac: str, outlet: int, delta_kwh: float):
+        if delta_kwh <= 0:
+            return
+        with self.lock:
+            today = date.today().isoformat()
+            e = self.data["energy"].setdefault(mac.upper(), {"outlets": {}, "daily": []})
+            o = e["outlets"].setdefault(str(outlet), {"total_kwh": 0.0})
+            o["total_kwh"] = round(o["total_kwh"] + delta_kwh, 3)
+            entry = next((d for d in e["daily"] if d["date"] == today), None)
+            if entry is None:
+                e["daily"].append({"date": today, "kwh": round(delta_kwh, 3)})
+                e["daily"] = e["daily"][-365:]
+            else:
+                entry["kwh"] = round(entry["kwh"] + delta_kwh, 3)
+
+    def history(self, mac: str | None = None, days: int = 30) -> dict:
+        with self.lock:
+            per_kwh = float(self.data["cost"].get("per_kwh") or 0)
+            currency = self.data["cost"].get("currency") or "$"
+            out = {}
+            for m, e in self.data["energy"].items():
+                if mac and m != mac.upper():
+                    continue
+                daily = e.get("daily", [])[-days:]
+                out[m] = {
+                    "total_kwh": round(sum(o.get("total_kwh", 0) for o in e.get("outlets", {}).values()), 3),
+                    "daily": daily,
+                    "cost": round(sum(d["kwh"] for d in daily) * per_kwh, 2),
+                    "currency": currency,
+                }
+            return out
+
+
+store = Store(Path(__file__).resolve().parent / DATA_FILE)
 
 
 class Device:
@@ -169,7 +313,16 @@ class Hub:
         return None
 
     def snapshot(self) -> dict:
-        return {"devices": [d.snapshot() for d in self.devices.values()]}
+        devices = []
+        for d in self.devices.values():
+            snap = d.snapshot()
+            snap["name"] = store.strip_name(d.mac) or snap["name"]
+            for o in snap["outlets"]:
+                o["name"] = store.outlet_name(d.mac, o["n"]) or f"Outlet {o['n']}"
+            # accumulate this device's live total cost from the strip's cumulative kWh
+            snap["cost_settings"] = store.cost()
+            devices.append(snap)
+        return {"devices": devices}
 
     async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         peer = writer.get_extra_info("peername")
@@ -249,8 +402,12 @@ class Hub:
 
     async def poll_loop(self) -> None:
         n = 0
+        last_energy = {}         # (mac, channel) -> last absolute kWh reading
+        fired_schedules = {}     # schedule id -> last fired date
+        triggered_rules = set()  # voltage-rule ids currently inside their condition
         while True:
             n += 1
+            now = datetime.now()
             for s in list(self.sessions.values()):
                 if not s.device:
                     continue
@@ -261,7 +418,61 @@ class Hub:
                         await s.diagnostics()
                 except Exception as err:
                     print(f"[device] poll error: {err!r}")
+
+            # energy: accumulate only positive deltas of the strip's cumulative kWh
+            for d in self.devices.values():
+                for ch, o in d.outlets.items():
+                    abs_kwh = o.get("energy_kwh", 0.0)
+                    key = (d.mac, ch)
+                    prev = last_energy.get(key)
+                    if prev is not None and abs_kwh > prev:
+                        store.add_energy(d.mac, ch, round(abs_kwh - prev, 3))
+                    last_energy[key] = abs_kwh
+
+            # schedules: fire once per day at HH:MM on the chosen weekdays
+            hhmm = now.strftime("%H:%M")
+            today = now.strftime("%Y-%m-%d")
+            for sch in store.schedules():
+                if sch.get("time") != hhmm or now.weekday() not in sch.get("days", []):
+                    continue
+                if fired_schedules.get(sch["id"]) == today:
+                    continue
+                fired_schedules[sch["id"]] = today
+                sess = self.session(sch["mac"])
+                if sess:
+                    chans = [sch["outlet"]] if sch["outlet"] else [1, 2, 3, 4]
+                    asyncio.create_task(self._apply(sess, chans, sch["on"]))
+
+            # voltage rules: edge-triggered on the transition into the condition
+            for d in self.devices.values():
+                if d.voltage_v is None:
+                    continue
+                for r in store.voltage_rules():
+                    if r["mac"].upper() != d.mac:
+                        continue
+                    v = d.voltage_v
+                    cond = (
+                        (r["op"] == "below" and v < r["volts"])
+                        or (r["op"] == "above" and v > r["volts"])
+                        or (r["op"] == "equals" and abs(v - r["volts"]) < 1.0)
+                    )
+                    if cond:
+                        if r["id"] not in triggered_rules:
+                            triggered_rules.add(r["id"])
+                            sess = self.session(r["mac"])
+                            if sess:
+                                chans = [r["outlet"]] if r["outlet"] else [1, 2, 3, 4]
+                                asyncio.create_task(self._apply(sess, chans, r["action"] == "on"))
+                    else:
+                        triggered_rules.discard(r["id"])
+
             await asyncio.sleep(POLL_SECONDS)
+
+    async def _apply(self, sess, channels: list[int], on: bool) -> None:
+        try:
+            await sess.set_outlets(channels, on)
+        except Exception as err:
+            print(f"[device] automation error: {err!r}")
 
 
 PAGE = """<!doctype html>
@@ -378,7 +589,19 @@ class Web(BaseHTTPRequestHandler):
         if path.startswith("/api/state"):
             snap = self.hub.snapshot()
             snap["local_ip"], snap["port"] = self.local_ip, self.port
+            snap["cost"] = store.cost()
             self._json(snap)
+        elif path == "/api/cost":
+            self._json({"cost": store.cost()})
+        elif path == "/api/history":
+            q = parse_qs(urlparse(self.path).query)
+            mac = (q.get("mac") or [None])[0]
+            days = int((q.get("days") or ["30"])[0])
+            self._json(store.history(mac=mac, days=days))
+        elif path == "/api/schedules":
+            self._json({"schedules": store.schedules()})
+        elif path == "/api/voltage_rules":
+            self._json({"voltage_rules": store.voltage_rules()})
         elif path in ("/", "/index.html"):
             body = PAGE.encode()
             self.send_response(200)
@@ -410,21 +633,51 @@ class Web(BaseHTTPRequestHandler):
             self._json({"error": "not found"}, 404)
 
     def do_POST(self):
-        if not urlparse(self.path).path.startswith("/api/onoff"):
-            self._json({"error": "not found"}, 404)
-            return
+        path = urlparse(self.path).path
         if not self._authorized():
             self._deny()
             return
         try:
             req = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")
+        except Exception:
+            req = {}
+
+        if path == "/api/onoff":
+            self._onoff(req)
+        elif path == "/api/name":
+            self._name(req)
+        elif path == "/api/cost":
+            self._set_cost(req)
+        elif path == "/api/schedules":
+            self._add_schedule(req)
+        elif path == "/api/voltage_rules":
+            self._add_voltage_rule(req)
+        else:
+            self._json({"error": "not found"}, 404)
+
+    def do_DELETE(self):
+        path = urlparse(self.path).path
+        if not self._authorized():
+            self._deny()
+            return
+        q = parse_qs(urlparse(self.path).query)
+        target = (q.get("id") or [None])[0]
+        if path == "/api/schedules" and target:
+            self._json({"ok": store.del_schedule(target)})
+        elif path == "/api/voltage_rules" and target:
+            self._json({"ok": store.del_voltage_rule(target)})
+        else:
+            self._json({"error": "not found"}, 404)
+
+    # ---- command handlers --------------------------------------------------
+    def _onoff(self, req):
+        try:
             mac = str(req["mac"]).upper()
             outlet = int(req["outlet"])
             on = bool(req["on"])
         except Exception:
             self._json({"error": "bad request"}, 400)
             return
-
         s = self.hub.session(mac)
         if not s:
             self._json({"error": "device offline"}, 503)
@@ -440,6 +693,52 @@ class Web(BaseHTTPRequestHandler):
             self._json({"error": f"command failed: {err}"}, 502)
             return
         self._json({"ok": bool(ok), "confirmed": ok})
+
+    def _name(self, req):
+        mac = str(req.get("mac", "")).upper()
+        if not mac:
+            self._json({"error": "mac required"}, 400)
+            return
+        outlet = req.get("outlet")
+        store.set_name(
+            mac,
+            name=req.get("name"),
+            outlet=None if outlet is None else int(outlet),
+            outlet_name=req.get("outlet_name"),
+        )
+        self._json({"ok": True})
+
+    def _set_cost(self, req):
+        store.set_cost(req.get("currency", "$"), float(req.get("per_kwh", 0) or 0))
+        self._json({"ok": True, "cost": store.cost()})
+
+    def _add_schedule(self, req):
+        try:
+            sid = store.add_schedule(
+                req["mac"],
+                int(req.get("outlet", 0)),
+                bool(req.get("on", True)),
+                str(req["time"]),
+                req.get("days", list(range(7))),
+            )
+        except Exception as err:
+            self._json({"error": f"bad request: {err}"}, 400)
+            return
+        self._json({"ok": True, "id": sid})
+
+    def _add_voltage_rule(self, req):
+        try:
+            rid = store.add_voltage_rule(
+                req["mac"],
+                int(req.get("outlet", 0)),
+                str(req.get("op", "below")),
+                float(req["volts"]),
+                str(req.get("action", "off")),
+            )
+        except Exception as err:
+            self._json({"error": f"bad request: {err}"}, 400)
+            return
+        self._json({"ok": True, "id": rid})
 
 
 def local_ipv4s() -> list[str]:
