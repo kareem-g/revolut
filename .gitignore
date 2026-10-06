@@ -37,3 +37,12 @@ desktop.ini
 # runtime data (names/cost/schedules/history)
 powerk-data.json
 powerk-data.json.tmp
+
+# ---- cloud (Next.js) ----
+cloud/node_modules/
+cloud/.next/
+cloud/next-env.d.ts
+cloud/tsconfig.tsbuildinfo
+
+# ---- bridge ----
+bridge/bridge.json

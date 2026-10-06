@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { I18nManager, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n } from '../i18n';
 import { useConn } from '../server';
 import { usePowerk } from '../usePowerk';
-import { usePalette } from '../theme';
+import { F, R, usePalette } from '../theme';
 import { snapshot as apiSnapshot, setCost, Cost } from '../api';
 import { discoverServer, getLocalIp } from '../discover';
 import {
@@ -19,6 +20,7 @@ import { TonalButton } from '../ui/parts';
 import { DEVICE_PORT } from '../hub/server';
 
 export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
+  const insets = useSafeAreaInsets();
   const { t, lang, setLang } = useI18n();
   const palette = usePalette();
   const conn = useConn();
@@ -74,7 +76,7 @@ export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
     (lang === 'ar' && !I18nManager.isRTL) || (lang === 'en' && I18nManager.isRTL);
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 6 }]}>
       <Text style={[styles.title, { color: palette.onSurface }]}>{t('settings_title')}</Text>
 
       <Card palette={palette}>
@@ -215,26 +217,33 @@ export function SettingsScreen({ onOpenSetup }: { onOpenSetup: () => void }) {
 
 function SetupStep({ n, text, palette }: { n: number; text: string; palette: ReturnType<typeof usePalette> }) {
   return (
-    <View style={{ flexDirection: 'row', gap: 10 }}>
+    <View style={{ flexDirection: 'row', gap: 12 }}>
       <View
         style={[
           styles.stepBadge,
-          { backgroundColor: palette.primaryContainer },
+          { borderColor: palette.outlineVariant, backgroundColor: palette.surfaceLowest },
         ]}>
-        <Text style={[styles.stepBadgeText, { color: palette.onPrimaryContainer }]}>{n}</Text>
+        <Text style={[styles.stepBadgeText, { color: palette.onSurface }]}>{n}</Text>
       </View>
-      <Text style={[styles.stepText, { color: palette.onSurface, flex: 1 }]}>{text}</Text>
+      <Text style={[styles.stepText, { color: palette.onSurfaceVariant, flex: 1 }]}>{text}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   content: { padding: 18, paddingBottom: 36, gap: 16 },
-  title: { fontSize: 28, fontWeight: '700', marginTop: 8 },
-  statusBox: { borderRadius: 12, padding: 14, gap: 6 },
+  title: { fontSize: 26, fontWeight: '700' },
+  statusBox: { borderRadius: R.sm, padding: 14, gap: 6 },
   statusText: { fontSize: 14, fontWeight: '500' },
-  stepBadge: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  stepBadgeText: { fontSize: 11, fontWeight: '700' },
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: R.xs,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeText: { fontFamily: F.monoSemi, fontSize: 11, marginTop: -1 },
   stepText: { fontSize: 14, lineHeight: 20 },
 });
 

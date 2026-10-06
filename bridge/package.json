@@ -1,0 +1,8 @@
+{
+  "name": "powerk-bridge",
+  "version": "1.0.0",
+  "description": "powerk home bridge: terminates the strip's TCP session and relays to powerk cloud. Zero dependencies, Node 18+.",
+  "type": "module",
+  "bin": { "powerk-bridge": "./bridge.js" },
+  "scripts": { "start": "node bridge.js" }
+}

@@ -8,6 +8,7 @@ const path = require('path');
 const proto = require(path.join(__dirname, '..', '.test-build', 'hub', 'protocol.js'));
 const prov = require(path.join(__dirname, '..', '.test-build', 'provision.js'));
 const { hub } = require(path.join(__dirname, '..', '.test-build', 'hub', 'hub.js'));
+const sched = require(path.join(__dirname, '..', '.test-build', 'schedule-logic.js'));
 
 // ---- wire protocol ----------------------------------------------------------
 
@@ -198,4 +199,63 @@ test('hub: full session — state, commands, events, offline', async () => {
 
 test('hub: setOutlet on an offline strip rejects', async () => {
   await assert.rejects(() => hub.setOutlet('DEADBEEF0000', 1, true));
+});
+
+// ---- schedules ---------------------------------------------------------------
+
+function at(h, m, day) {
+  return new Date(2026, 9, 5, h, m, 0, 0); // Oct 5 2026 is a Monday (day 1)
+}
+
+function ev(overrides) {
+  return sched.makeSchedule({
+    mac: 'A1B2C3D4E5F6',
+    outlet: 2,
+    on: true,
+    time: '07:05',
+    days: [],
+    ...overrides,
+  });
+}
+
+test('schedule: fires a daily event at its minute', () => {
+  const list = [ev({})];
+  const due = sched.dueEvents(at(7, 5), list, new Set());
+  assert.equal(due.length, 1);
+  assert.equal(due[0].outlet, 2);
+  assert.equal(due[0].on, true);
+});
+
+test('schedule: does not fire before or after its minute', () => {
+  const list = [ev({})];
+  assert.equal(sched.dueEvents(at(7, 4), list, new Set()).length, 0);
+  assert.equal(sched.dueEvents(at(7, 6), list, new Set()).length, 0);
+});
+
+test('schedule: respects the weekday filter', () => {
+  const mondayOnly = [ev({ days: [1] })];
+  assert.equal(sched.dueEvents(at(7, 5), mondayOnly, new Set()).length, 1); // Mon
+  assert.equal(sched.dueEvents(at(7, 5, ), [ev({ days: [0] })], new Set()).length, 0); // Sun-only, Monday now
+});
+
+test('schedule: disabled events never fire', () => {
+  const list = [ev({ enabled: false })];
+  assert.equal(sched.dueEvents(at(7, 5), list, new Set()).length, 0);
+});
+
+test('schedule: an event fires once per minute', () => {
+  const list = [ev({})];
+  const fired = new Set();
+  const now = at(7, 5);
+  const due = sched.dueEvents(now, list, fired);
+  assert.equal(due.length, 1);
+  sched.markFired(fired, due, now);
+  assert.equal(sched.dueEvents(now, list, fired).length, 0);
+});
+
+test('schedule: parseTime validates', () => {
+  assert.deepEqual(sched.parseTime('07:05'), { h: 7, m: 5 });
+  assert.equal(sched.parseTime('24:00'), null);
+  assert.equal(sched.parseTime('7:05'), null);
+  assert.equal(sched.parseTime('x'), null);
 });

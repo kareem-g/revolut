@@ -61,6 +61,9 @@ Both modes use the same file and the same app.
 |---|---|
 | `powerk.py` | the server: TCP 10086 device server, web UI + JSON API, the `provision` command, `selftest` |
 | `android/` | Android app source (`gradlew assembleDebug`) |
+| `mobile/` | React Native app (iOS + Android): direct mode, server mode, provisioning, schedules |
+| `cloud/` | **server mode for production** — Next.js + Postgres on Vercel (free tier), multi-user, accounts, dashboard |
+| `bridge/` | zero-dependency Node service: keeps the strip's TCP session at home and relays to `cloud/` (outbound only) |
 | `README.md` / `README.ar.md` | this document, English / Arabic |
 
 ## Requirements

@@ -24,7 +24,7 @@
     "android": {
       "package": "com.powerk.mobile",
       "adaptiveIcon": {
-        "backgroundColor": "#A6F2C4",
+        "backgroundColor": "#E9EAE4",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
@@ -50,10 +50,10 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
           "resizeMode": "contain",
-          "backgroundColor": "#F5FBF5",
+          "backgroundColor": "#E9EAE4",
           "dark": {
             "image": "./assets/splash-icon-dark.png",
-            "backgroundColor": "#0F1511"
+            "backgroundColor": "#121410"
           }
         }
       ],

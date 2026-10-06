@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -11,19 +10,18 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Palette, R, springs } from '../theme';
+import { F, Palette, R, springs, usePalette } from '../theme';
 import { BoltLogo } from './BoltLogo';
 
 // --- Splash (1.1 s, like the Android app) -----------------------------------
+// Flat panel grey, a single bolt, the wordmark. No gradients — the enclosure
+// is powder-coated, not glossy.
 
 export function Splash({ palette, title, tagline }: { palette: Palette; title: string; tagline: string }) {
   const appear = useSharedValue(0);
@@ -39,12 +37,10 @@ export function Splash({ palette, title, tagline }: { palette: Palette; title: s
   }));
   const textStyle = useAnimatedStyle(() => ({ opacity: appear.value }));
   return (
-    <LinearGradient
-      colors={[palette.primaryContainer, palette.background]}
-      style={StyleSheet.absoluteFill}>
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: palette.background }]}>
       <View style={styles.splash}>
         <Animated.View style={logoStyle}>
-          <BoltLogo size={150} />
+          <BoltLogo size={120} color={palette.primary} />
         </Animated.View>
         <Animated.Text style={[styles.splashTitle, { color: palette.onSurface }, textStyle]}>
           {title}
@@ -53,9 +49,9 @@ export function Splash({ palette, title, tagline }: { palette: Palette; title: s
           {tagline}
         </Animated.Text>
         <View style={{ height: 38 }} />
-        <ActivityIndicator size="small" color={palette.primary} />
+        <ActivityIndicator size="small" color={palette.outline} />
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -105,6 +101,7 @@ export function MessageCard({
         styles.message,
         {
           backgroundColor: isError ? palette.errorContainer : palette.surfaceHighest,
+          borderStartColor: isError ? palette.error : 'transparent',
         },
       ]}>
       <Text style={{ color: isError ? palette.onErrorContainer : palette.onSurface, flex: 1 }}>
@@ -130,7 +127,7 @@ export function EmptyState({
   return (
     <View style={styles.empty}>
       <View style={[styles.emptyIcon, { backgroundColor: palette.surfaceHighest }]}>
-        <BoltLogo size={30} color={palette.onSurfaceVariant} />
+        <BoltLogo size={26} color={palette.onSurfaceVariant} />
       </View>
       <Text style={[styles.emptyTitle, { color: palette.onSurface }]}>{title}</Text>
       <Text style={[styles.emptyBody, { color: palette.onSurfaceVariant }]}>{body}</Text>
@@ -146,6 +143,8 @@ export function EmptyState({
 }
 
 // --- Form fields ------------------------------------------------------------------
+// Labels are engraved captions; inputs sit in recessed white wells with a
+// hairline border.
 
 export function Field({
   label,
@@ -176,7 +175,7 @@ export function Field({
 }) {
   return (
     <View style={style}>
-      <Text style={[styles.fieldLabel, { color: palette.onSurface }]}>{label}</Text>
+      <Text style={[styles.fieldLabel, { color: palette.onSurfaceVariant }]}>{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -216,12 +215,19 @@ export function Card({
   style?: ViewStyle;
 }) {
   return (
-    <View style={[styles.card, { backgroundColor: palette.surfaceLow }, style]}>{children}</View>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: palette.surfaceLow, borderColor: palette.outlineVariant },
+        style,
+      ]}>
+      {children}
+    </View>
   );
 }
 
 export function SectionTitle({ text, palette }: { text: string; palette: Palette }) {
-  return <Text style={[styles.sectionTitle, { color: palette.onSurface }]}>{text}</Text>;
+  return <Text style={[styles.sectionTitle, { color: palette.onSurfaceVariant }]}>{text}</Text>;
 }
 
 export function BodyText({ text, palette }: { text: string; palette: Palette }) {
@@ -229,6 +235,7 @@ export function BodyText({ text, palette }: { text: string; palette: Palette }) 
 }
 
 // --- Segmented control -------------------------------------------------------------
+// The active segment is the one "switched on": solid ink, panel-colored label.
 
 export function Segmented<T extends string>({
   options,
@@ -242,8 +249,12 @@ export function Segmented<T extends string>({
   palette: Palette;
 }) {
   return (
-    <View style={[styles.segment, { borderColor: palette.outlineVariant }]}>
-      {options.map((o, i) => {
+    <View
+      style={[
+        styles.segment,
+        { borderColor: palette.outlineVariant, backgroundColor: palette.surfaceLowest },
+      ]}>
+      {options.map((o) => {
         const selected = o.value === value;
         return (
           <Pressable
@@ -251,14 +262,12 @@ export function Segmented<T extends string>({
             onPress={() => onChange(o.value)}
             style={[
               styles.segmentItem,
-              i === 0 && styles.segmentFirst,
-              i === options.length - 1 && styles.segmentLast,
-              selected && { backgroundColor: palette.secondaryContainer },
+              selected && { backgroundColor: palette.onSurface },
             ]}>
             <Text
               style={[
                 styles.segmentText,
-                { color: selected ? palette.onSecondaryContainer : palette.onSurfaceVariant },
+                { color: selected ? palette.background : palette.onSurfaceVariant },
               ]}
               numberOfLines={1}>
               {o.label}
@@ -279,6 +288,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [message, setMessage] = useState<string | null>(null);
   const [visible, setVisible] = useState(false);
   const translateY = useSharedValue(80);
+  const palette = usePalette();
 
   const show = useMemo<ToastFn>(
     () => (m: string) => {
@@ -307,8 +317,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastCtx.Provider value={show}>
       {children}
       {visible && message && (
-        <Animated.View pointerEvents="none" style={[styles.toast, style]}>
-          <Text style={styles.toastText}>{message}</Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.toast, style, { backgroundColor: palette.onSurface }]}>
+          <Text style={[styles.toastText, { color: palette.background }]}>{message}</Text>
         </Animated.View>
       )}
     </ToastCtx.Provider>
@@ -323,9 +335,9 @@ export function useToast(): ToastFn {
 
 const styles = StyleSheet.create({
   splash: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  splashTitle: { fontSize: 34, fontWeight: '600', marginTop: 18 },
-  splashTagline: { fontSize: 14, marginTop: 4 },
-  dot: { width: 11, height: 11, borderRadius: 6 },
+  splashTitle: { fontFamily: F.wordmark, fontSize: 32, marginTop: 20, letterSpacing: 0.5 },
+  splashTagline: { fontSize: 13, marginTop: 6 },
+  dot: { width: 9, height: 9, borderRadius: 5 },
   pill: {
     borderRadius: R.full,
     paddingHorizontal: 12,
@@ -334,30 +346,34 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   pillText: { fontSize: 13, fontWeight: '500' },
-  switchTrack: { width: 38, height: 22, borderRadius: 11 },
-  switchThumb: { width: 18, height: 18, borderRadius: 9, marginTop: 2, marginLeft: 0 },
-  watts: { fontSize: 34, fontWeight: '600', lineHeight: 40 },
-  wattsUnit: { fontSize: 13, fontWeight: '500' },
-  wattsNow: { fontSize: 12, marginTop: 2 },
   tile: {
-    borderRadius: R.lg,
+    borderRadius: R.md,
     minHeight: 96,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 6,
   },
-  tileTopRow: { flexDirection: 'row', alignItems: 'center' },
-  tileName: { fontSize: 13, fontWeight: '600', flex: 1 },
-  tileState: { fontSize: 17, fontWeight: '700' },
-  tileDetail: { fontSize: 11 },
-  card: { borderRadius: R.lg, padding: 18, gap: 16 },
-  cardHead: { flexDirection: 'row', alignItems: 'center' },
-  cardTitle: { fontSize: 20, fontWeight: '600' },
-  cardFw: { fontSize: 12, marginTop: 1 },
-  metricsRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  tileRow: { flexDirection: 'row', gap: 10 },
+  card: { borderRadius: R.md, padding: 18, gap: 14, borderWidth: StyleSheet.hairlineWidth },
+  message: {
+    borderRadius: R.sm,
+    borderStartWidth: 3,
+    padding: 14,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  empty: { alignItems: 'center', paddingTop: 48, paddingHorizontal: 12 },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: R.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: { fontSize: 16, fontWeight: '600', marginTop: 16 },
+  emptyBody: { fontSize: 14, textAlign: 'center', marginTop: 6, lineHeight: 20 },
   button: {
-    minHeight: 52,
+    minHeight: 48,
     borderRadius: R.md,
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,33 +382,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   buttonText: { fontSize: 15, fontWeight: '600' },
-  message: { borderRadius: R.sm, padding: 16, flexDirection: 'row', gap: 12, alignItems: 'center' },
-  empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 12 },
-  emptyIcon: { width: 66, height: 66, borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
-  emptyTitle: { fontSize: 17, fontWeight: '600', marginTop: 16 },
-  emptyBody: { fontSize: 14, textAlign: 'center', marginTop: 6, lineHeight: 20 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
   fieldInput: {
     borderWidth: 1,
     borderRadius: R.sm,
     paddingHorizontal: 14,
-    minHeight: 46,
+    minHeight: 48,
     fontSize: 15,
   },
   fieldHint: { fontSize: 12, marginTop: 6, lineHeight: 17 },
-  mono: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }) },
-  sectionTitle: { fontSize: 18, fontWeight: '600' },
+  mono: { fontFamily: F.mono },
+  sectionTitle: { fontSize: 12, fontWeight: '700' },
   body: { fontSize: 14, lineHeight: 20 },
   segment: { flexDirection: 'row', borderWidth: 1, borderRadius: R.sm, overflow: 'hidden' },
-  segmentItem: { flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: 'transparent' },
-  segmentFirst: {},
-  segmentLast: {},
+  segmentItem: { flex: 1, paddingVertical: 10, alignItems: 'center' },
   segmentText: { fontSize: 14, fontWeight: '500' },
   toast: {
     position: 'absolute',
     bottom: 90,
     alignSelf: 'center',
-    backgroundColor: '#2C322D',
     borderRadius: R.sm,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -403,5 +411,5 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 3 },
   },
-  toastText: { color: '#EDF3EC', fontSize: 14 },
+  toastText: { fontSize: 14 },
 });

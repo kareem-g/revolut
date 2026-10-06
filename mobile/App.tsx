@@ -7,9 +7,12 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import { I18nProvider, useI18n } from './src/i18n';
 import { ConnProvider } from './src/server';
-import { usePalette } from './src/theme';
+import { SchedulesProvider } from './src/useSchedules';
+import { NamesProvider } from './src/useNames';
+import { FONTS, usePalette } from './src/theme';
 import { SplashGate, ToastProvider } from './src/ui/bits';
 import { ErrorBoundary } from './src/ui/ErrorBoundary';
 import { PlugsScreen } from './src/screens/PlugsScreen';
@@ -23,9 +26,15 @@ function Shell() {
   const palette = usePalette();
   const { t } = useI18n();
 
-  // The native splash must be dismissed explicitly once we can paint real UI.
+  // The native splash hides once the typefaces are ready (with a fallback so a
+  // slow asset load can never trap the app on the splash).
+  const [fontsLoaded] = useFonts(FONTS);
   useEffect(() => {
-    void SplashScreen.hideAsync();
+    if (fontsLoaded) void SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+  useEffect(() => {
+    const t = setTimeout(() => void SplashScreen.hideAsync(), 3000);
+    return () => clearTimeout(t);
   }, []);
   const navTheme = {
     ...DefaultTheme,
@@ -46,7 +55,10 @@ function Shell() {
             headerShown: false,
             tabBarActiveTintColor: palette.primary,
             tabBarInactiveTintColor: palette.onSurfaceVariant,
-            tabBarStyle: { borderTopColor: palette.outlineVariant },
+            tabBarStyle: {
+              borderTopColor: palette.outlineVariant,
+              backgroundColor: palette.background,
+            },
             tabBarIcon: ({ focused, color, size }) => {
               const icon =
                 route.name === 'plugs'
@@ -106,11 +118,15 @@ export default function App() {
     <ErrorBoundary>
       <SafeAreaProvider>
         <ConnProvider>
-          <I18nProvider>
-            <ToastProvider>
-              <Shell />
-            </ToastProvider>
-          </I18nProvider>
+          <NamesProvider>
+            <SchedulesProvider>
+            <I18nProvider>
+              <ToastProvider>
+                <Shell />
+              </ToastProvider>
+            </I18nProvider>
+            </SchedulesProvider>
+          </NamesProvider>
         </ConnProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

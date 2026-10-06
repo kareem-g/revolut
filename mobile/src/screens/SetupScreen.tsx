@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n } from '../i18n';
 import { useConn, WifiCreds } from '../server';
-import { usePalette } from '../theme';
+import { F, usePalette } from '../theme';
 import { isIpv4, SETUP_HOST, SETUP_PORT, credsValid, stripCodeToNetwork } from '../provision';
 import { joinNetwork, rejoinHome } from '../wifi';
 import { provisionStrip } from '../setup-conn';
@@ -59,6 +60,7 @@ const isStripSsid = (ssid: string | null) =>
   !!ssid && ssid.trim().toLowerCase().startsWith('tonly_tap_');
 
 export function SetupScreen() {
+  const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const palette = usePalette();
   const conn = useConn();
@@ -247,7 +249,7 @@ export function SetupScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 6 }]}>
       <Text style={[styles.title, { color: palette.onSurface }]}>{t('prov_title')}</Text>
       <BodyText text={t('prov_intro')} palette={palette} />
 
@@ -435,15 +437,16 @@ export function SetupScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 18, paddingBottom: 36, gap: 16 },
-  title: { fontSize: 28, fontWeight: '700', marginTop: 8 },
+  title: { fontSize: 26, fontWeight: '700' },
   derived: { fontSize: 13, fontWeight: '600' },
   detecting: { fontSize: 14, fontWeight: '600' },
   log: {
     borderRadius: R.sm,
+    borderWidth: 1,
     padding: 12,
-    minHeight: 88,
+    minHeight: 96,
     justifyContent: 'flex-end',
   },
-  logLine: { fontSize: 12, lineHeight: 18 },
-  mono: { fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace' }) },
+  logLine: { fontFamily: F.mono, fontSize: 12, lineHeight: 18, writingDirection: 'ltr' },
+  mono: { fontFamily: F.mono },
 });
